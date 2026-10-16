@@ -66,8 +66,8 @@ final class SortEngine: ObservableObject {
         stopWatcher()
         stopTimer()
 
-        watchURL = Settings.shared.resolveWatchFolder()
-        destURL = Settings.shared.resolveDestFolder() ?? watchURL
+        watchURL = AppSettings.shared.resolveWatchFolder()
+        destURL = AppSettings.shared.resolveDestFolder() ?? watchURL
         watchPath = watchURL?.path
         destPath = destURL?.path
 
@@ -162,7 +162,7 @@ final class SortEngine: ObservableObject {
             // Include/ignore filters (extensions, dates, selected paths).
             let fileDate = values.addedToDirectoryDate
                 ?? values.contentModificationDate ?? Date()
-            if !Settings.shared.shouldProcess(url: entry, fileDate: fileDate) {
+            if !AppSettings.shared.shouldProcess(url: entry, fileDate: fileDate) {
                 continue
             }
 
@@ -182,7 +182,7 @@ final class SortEngine: ObservableObject {
         let destination = uniqueDestination(
             destinationFolder.appendingPathComponent(url.lastPathComponent))
 
-        if Settings.shared.dryRun {
+        if AppSettings.shared.dryRun {
             record(MoveRecord(fileName: url.lastPathComponent,
                               folder: folder,
                               decidedBy: decidedBy,
@@ -217,20 +217,20 @@ final class SortEngine: ObservableObject {
 
     func classify(_ url: URL) async -> (folder: String, decidedBy: String) {
         // Tier 0 — user-defined custom rules (highest priority).
-        if let customFolder = Settings.shared.customRuleMatch(url) {
+        if let customFolder = AppSettings.shared.customRuleMatch(url) {
             return (customFolder, "custom")
         }
 
         // Tier 0.5 — Apple Intelligence multimodal (macOS 27+): the model
         // looks at the image itself: screenshot vs photo vs graphic.
-        if Settings.shared.useAI, RuleClassifier.isImage(url),
+        if AppSettings.shared.useAI, RuleClassifier.isImage(url),
            ai.isMultimodalAvailable,
            let imageCategory = await ai.classifyImage(at: url) {
             return (imageCategory.folderName, "AI")
         }
 
         // Tier 2 — Apple Intelligence reads the actual content.
-        if Settings.shared.useAI,
+        if AppSettings.shared.useAI,
            TextExtractor.textishExtensions.contains(url.pathExtension.lowercased()),
            ai.isAvailable,
            let text = TextExtractor.extract(from: url), !text.isEmpty,
@@ -365,7 +365,7 @@ final class SortEngine: ObservableObject {
                 entries: entries,
                 watchPath: watchURL.path,
                 destPath: (destURL ?? watchURL).path,
-                aiOn: Settings.shared.useAI && ai.isAvailable)
+                aiOn: AppSettings.shared.useAI && ai.isAvailable)
             // NSWorkspace.open hands the file to the default browser; macOS
             // automatically grants the browser read access to this file.
             NSWorkspace.shared.open(reportURL)
@@ -404,7 +404,7 @@ final class SortEngine: ObservableObject {
 
             let fileDate = values.addedToDirectoryDate
                 ?? values.contentModificationDate ?? Date()
-            if !Settings.shared.shouldProcess(url: entry, fileDate: fileDate) {
+            if !AppSettings.shared.shouldProcess(url: entry, fileDate: fileDate) {
                 entries.append(PreviewReport.Entry(
                     fileName: name, sourcePath: entry.path,
                     outcome: .skip(reason: "matched an include/ignore filter")))

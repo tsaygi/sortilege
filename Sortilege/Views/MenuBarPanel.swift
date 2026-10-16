@@ -11,7 +11,7 @@ import SwiftUI
 
 struct MenuBarPanel: View {
     @ObservedObject private var engine = SortEngine.shared
-    @ObservedObject private var settings = Settings.shared
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

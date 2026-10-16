@@ -12,7 +12,7 @@ import SwiftUI
 
 struct SettingsWindow: View {
     @ObservedObject private var engine = SortEngine.shared
-    @ObservedObject private var settings = Settings.shared
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         Form {

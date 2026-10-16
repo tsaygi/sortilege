@@ -12,15 +12,11 @@ import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
 
-@available(macOS 26.0, *)
-extension AICategory: Generable {}
-
-@available(macOS 26.0, *)
-extension ImageCategory: Generable {}
-#endif
-
 /// String-raw-value enums conform to `Generable` for guided generation.
-enum AICategory: String, CaseIterable {
+/// Synthesis only happens on the primary declaration, so the conformance
+/// is declared here (inside the availability-guarded region).
+@available(macOS 26.0, *)
+enum AICategory: String, CaseIterable, Generable {
     /// General documents: letters, reports, manuals, invoices, receipts, ebooks.
     case document
     /// Tabular or financial data, CSV-like content, ledgers.
@@ -45,7 +41,8 @@ enum AICategory: String, CaseIterable {
 
 /// Multimodal classification result for image files (macOS 27+).
 /// Guided generation forces the model to answer with one of these cases.
-enum ImageCategory: String, CaseIterable {
+@available(macOS 27.0, *)
+enum ImageCategory: String, CaseIterable, Generable {
     /// Screen captures: app windows, menus, dialogs, the desktop, any UI.
     case screenshot
     /// Real-world photographs taken by a camera.
@@ -61,6 +58,7 @@ enum ImageCategory: String, CaseIterable {
         }
     }
 }
+#endif
 
 final class AIClassifier {
 
@@ -90,7 +88,8 @@ final class AIClassifier {
 
     /// Multimodal classification (macOS 27+): the on-device model looks at
     /// the image itself and decides screenshot / photo / graphic.
-    func classifyImage(at imageURL: URL) async -> ImageCategory? {
+    /// Returns the destination folder name, or nil when unavailable.
+    func classifyImage(at imageURL: URL) async -> String? {
         #if canImport(FoundationModels)
         guard #available(macOS 27.0, *) else { return nil }
         guard case .available = SystemLanguageModel.default.availability else {
@@ -115,13 +114,16 @@ final class AIClassifier {
             "Classify this image into exactly one category."
             Attachment(imageURL: imageURL)
         }
-        return result?.content
+        return result?.content.folderName
         #else
         return nil
         #endif
     }
 
-    func classify(filename: String, text: String) async -> AICategory? {
+    /// Text classification (macOS 26+): the on-device model reads the
+    /// file's content and decides the category.
+    /// Returns the destination folder name, or nil when unavailable.
+    func classify(filename: String, text: String) async -> String? {
         #if canImport(FoundationModels)
         guard #available(macOS 26.0, *) else { return nil }
         guard case .available = SystemLanguageModel.default.availability else {
@@ -149,7 +151,7 @@ final class AIClassifier {
         // If your SDK revision makes LanguageModelSession.init throwing,
         // prefix the initializer above with `try`.
         let response = try? await session.respond(to: prompt, generating: AICategory.self)
-        return response?.content
+        return response?.content.category.folderName
         #else
         return nil
         #endif

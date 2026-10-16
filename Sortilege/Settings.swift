@@ -12,7 +12,7 @@ import ServiceManagement
 // MARK: - Settings (persisted, sandbox-safe)
 
 @MainActor
-final class Settings: ObservableObject {
+final class AppSettings: ObservableObject {
     static let shared = Settings()
     private let defaults = UserDefaults.standard
 
