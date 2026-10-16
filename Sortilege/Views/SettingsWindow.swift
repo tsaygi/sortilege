@@ -81,6 +81,16 @@ struct SettingsWindow: View {
             }
 
             Section {
+                ignoredFilesEditor
+            } header: {
+                Text("Ignored files")
+            } footer: {
+                Text("Files moved back via Undo are added here automatically "
+                     + "and are never sorted again — even after a restart. "
+                     + "Remove an entry to let Sortilege sort the file again.")
+            }
+
+            Section {
                 folderPickers
             } header: {
                 Text("Folders")
@@ -185,6 +195,51 @@ struct SettingsWindow: View {
         .padding(.vertical, 2)
     }
 
+    private var ignoredFilesEditor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if settings.ignoredPaths.isEmpty {
+                Text("No ignored files. When you move a file back with Undo, "
+                     + "it is added here so it is never sorted again.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(settings.ignoredPaths, id: \.self) { path in
+                HStack {
+                    Image(systemName: pathIcon(path))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text((path as NSString).lastPathComponent)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(path)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Allow Again") {
+                        settings.removeIgnoredPath(path)
+                    }
+                    .controlSize(.small)
+                    Button(role: .destructive) {
+                        settings.removeIgnoredPath(path)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func pathIcon(_ path: String) -> String {
+        var isDirectory: ObjCBool = false
+        FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+        return isDirectory.boolValue ? "folder" : "doc"
+    }
+
     private func chooseWatchFolder() {
         if let url = FolderPicker.choose(
             message: "Choose the folder Sortilege should watch (e.g. Downloads).") {
@@ -219,7 +274,8 @@ private struct RuleEditorRow: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 180)
+                .frame(maxWidth: 260)
+                .fixedSize()
 
                 Spacer()
                 Toggle("Enabled", isOn: $rule.enabled)
@@ -232,7 +288,8 @@ private struct RuleEditorRow: View {
             }
             HStack(spacing: 6) {
                 TextField(placeholder, text: $rule.pattern)
-                    .frame(width: 150)
+                    .frame(minWidth: 90, maxWidth: 160)
+                    .fixedSize()
                 Image(systemName: "arrow.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -272,7 +329,8 @@ private struct FilterEditorRow: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 220)
+                .frame(maxWidth: 300)
+                .fixedSize()
 
                 Spacer()
                 Toggle("Enabled", isOn: $filter.enabled)
@@ -314,7 +372,8 @@ private struct FilterEditorRow: View {
                     Text("before").tag(false)
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 120)
+                .frame(maxWidth: 140)
+                .fixedSize()
                 .labelsHidden()
             }
         case .byPath:

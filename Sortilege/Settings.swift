@@ -24,6 +24,7 @@ final class AppSettings: ObservableObject {
         static let history = "sortilege.history"
         static let rules = "sortilege.rules"
         static let filters = "sortilege.filters"
+        static let ignoredPaths = "sortilege.ignoredPaths"
     }
 
     @Published var watchBookmark: Data?
@@ -40,6 +41,12 @@ final class AppSettings: ObservableObject {
     /// Include/ignore filters applied before any sorting tier.
     @Published var filters: [SortFilter] {
         didSet { persistFilters() }
+    }
+    /// Paths of files the user has moved back via Undo. Persisted, so
+    /// unlike the session-only engine set these survive restarts — a file
+    /// in this list is never processed again until removed.
+    @Published var ignoredPaths: [String] {
+        didSet { persistIgnoredPaths() }
     }
 
     private init() {
@@ -60,6 +67,11 @@ final class AppSettings: ObservableObject {
             filters = savedFilters
         } else {
             filters = []
+        }
+        if let paths = defaults.stringArray(forKey: Key.ignoredPaths) {
+            ignoredPaths = paths
+        } else {
+            ignoredPaths = []
         }
     }
 
@@ -146,6 +158,23 @@ final class AppSettings: ObservableObject {
         if let data = try? JSONEncoder().encode(filters) {
             defaults.set(data, forKey: Key.filters)
         }
+    }
+
+    private func persistIgnoredPaths() {
+        defaults.set(ignoredPaths, forKey: Key.ignoredPaths)
+    }
+
+    func addIgnoredPath(_ path: String) {
+        guard !ignoredPaths.contains(path) else { return }
+        ignoredPaths.append(path)
+    }
+
+    func removeIgnoredPath(_ path: String) {
+        ignoredPaths.removeAll { $0 == path }
+    }
+
+    func isIgnored(_ path: String) -> Bool {
+        ignoredPaths.contains(path)
     }
 
     func addFilter() {

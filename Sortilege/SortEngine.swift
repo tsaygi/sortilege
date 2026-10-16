@@ -163,6 +163,7 @@ final class SortEngine: ObservableObject {
             if name.hasPrefix(".") { continue }
             if Self.inFlightExtensions.contains(entry.pathExtension.lowercased()) { continue }
             if skipPaths.contains(entry.path) { continue }
+            if AppSettings.shared.isIgnored(entry.path) { continue }
 
             // Include/ignore filters (extensions, dates, selected paths).
             let fileDate = values.addedToDirectoryDate
@@ -379,6 +380,7 @@ final class SortEngine: ObservableObject {
             try fileManager.moveItem(at: from, to: uniqueDestination(backTo))
             entry.undone = true
             skipPaths.insert(entry.sourcePath)
+            AppSettings.shared.addIgnoredPath(entry.sourcePath)
             NSLog("Sortilege[diag]: undo succeeded — moved back to \(backTo.path)")
         } catch {
             NSLog("Sortilege[diag]: undo moveItem threw: \(error)")
@@ -455,6 +457,12 @@ final class SortEngine: ObservableObject {
                 entries.append(PreviewReport.Entry(
                     fileName: name, sourcePath: entry.path,
                     outcome: .skip(reason: "moved back this session — left untouched")))
+                continue
+            }
+            if AppSettings.shared.isIgnored(entry.path) {
+                entries.append(PreviewReport.Entry(
+                    fileName: name, sourcePath: entry.path,
+                    outcome: .skip(reason: "on the ignored list (Settings → Ignored files)")))
                 continue
             }
 
