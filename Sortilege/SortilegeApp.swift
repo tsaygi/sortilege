@@ -90,8 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func openSettingsWindow() {
         NSLog("Sortilege[diag]: openSettingsWindow called")
         if let window = settingsWindow {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            bringToFront(window)
             return
         }
 
@@ -103,8 +102,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(rootView: SettingsWindow())
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
         settingsWindow = window
+        bringToFront(window)
+    }
+
+    /// Accessory apps don't come forward on their own — activate, raise
+    /// above other apps' windows, and order front regardless.
+    private func bringToFront(_ window: NSWindow) {
+        NSApp.activate(ignoringOtherApps: true)
+        window.level = .floating
+        window.orderFrontRegardless()
+        window.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.async {
+            // Return to the normal level after activation completes so the
+            // window behaves like a regular document window afterwards.
+            window.level = .normal
+        }
     }
 }
