@@ -81,6 +81,7 @@ final class AuxiliaryWindowController {
     static let shared = AuxiliaryWindowController()
     private var settingsWindow: NSWindow?
     private var activityWindow: NSWindow?
+    private var planWindow: NSWindow?
 
     func openSettings() {
         let window = settingsWindow ?? makeWindow(
@@ -98,6 +99,25 @@ final class AuxiliaryWindowController {
             view: ActivityWindow())
         activityWindow = window
         bringToFront(window)
+    }
+
+    /// Plan review window for a newly selected folder. Replaces any
+    /// previous plan window so only one review is ever open.
+    func openPlanReview(watchPath: String, entries: [PreviewReport.Entry]) {
+        planWindow?.close()
+        let window = makeWindow(
+            title: "Review Sort Plan",
+            contentRect: NSRect(x: 0, y: 0, width: 680, height: 480),
+            view: PlanReviewWindow(watchPath: watchPath, entries: entries))
+        planWindow = window
+        bringToFront(window)
+    }
+
+    /// Closes the plan review window (the plan window is not a SwiftUI
+    /// scene, so dismiss() inside it cannot close it).
+    func closePlanReview() {
+        planWindow?.close()
+        planWindow = nil
     }
 
     private func makeWindow(title: String, contentRect: NSRect, view: some View) -> NSWindow {

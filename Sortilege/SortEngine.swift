@@ -23,6 +23,9 @@ final class SortEngine: ObservableObject {
     @Published private(set) var aiAvailable = false
     @Published private(set) var isGeneratingPreview = false
     @Published var lastError: String?
+    /// True while the user is reviewing the plan for a newly selected
+    /// folder. The engine does not scan or move anything while paused.
+    @Published private(set) var isPaused = false
 
     /// Files younger than this are skipped (still downloading / being written).
     static let minAge: TimeInterval = 15
@@ -79,6 +82,20 @@ final class SortEngine: ObservableObject {
         guard let watchURL else { return }
         startWatcher()
         startTimer()
+        guard !isPaused else { return }
+        Task { await scan() }
+    }
+
+    /// Pauses automatic sorting (watcher events and timer scans are
+    /// ignored while paused). Used while the user reviews the plan for a
+    /// newly selected folder.
+    func pause() {
+        isPaused = true
+    }
+
+    /// Lifts the pause and runs an immediate scan.
+    func resume() {
+        isPaused = false
         Task { await scan() }
     }
 
@@ -141,7 +158,7 @@ final class SortEngine: ObservableObject {
     // MARK: Scanning
 
     func scan() async {
-        guard !isScanning, let watchURL else { return }
+        guard !isPaused, !isScanning, let watchURL else { return }
         isScanning = true
         defer {
             isScanning = false
@@ -434,6 +451,12 @@ final class SortEngine: ObservableObject {
 
     /// Mirrors scan()'s candidate selection, but records what WOULD happen
     /// (including filter skips) instead of moving anything.
+    /// Collects the current sort plan (no files are touched) for the
+    /// folder-plan review window.
+    func collectPlan() async -> [PreviewReport.Entry] {
+        await collectPreviewEntries()
+    }
+
     private func collectPreviewEntries() async -> [PreviewReport.Entry] {
         guard let watchURL else { return [] }
         let keys: [URLResourceKey] = [

@@ -240,11 +240,24 @@ struct SettingsWindow: View {
         return isDirectory.boolValue ? "folder" : "doc"
     }
 
+    /// Pauses sorting, reloads the engine with the new folder, collects
+    /// the plan, and shows the review window. Sorting only starts when the
+    /// user accepts the plan.
+    private func reviewPlan() {
+        engine.pause()
+        engine.reload()
+        Task { @MainActor in
+            let entries = await engine.collectPlan()
+            AuxiliaryWindowController.shared.openPlanReview(
+                watchPath: engine.watchPath ?? "", entries: entries)
+        }
+    }
+
     private func chooseWatchFolder() {
         if let url = FolderPicker.choose(
             message: "Choose the folder Sortilege should watch (e.g. Downloads).") {
             settings.setWatchFolder(url)
-            engine.reload()
+            reviewPlan()
         }
     }
 
@@ -253,7 +266,7 @@ struct SettingsWindow: View {
             message: "Choose where category folders should be created. "
                    + "Tip: pick a folder inside Documents so files get backed up.") {
             settings.setDestFolder(url)
-            engine.reload()
+            reviewPlan()
         }
     }
 }
