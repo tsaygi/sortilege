@@ -269,11 +269,21 @@ struct SettingsWindow: View {
     }
 
     private func chooseWatchFolder() {
-        if let url = FolderPicker.choose(
-            message: "Choose the folder Sortilege should watch (e.g. Downloads).") {
-            settings.setWatchFolder(url)
-            reviewPlan()
+        guard let watchURL = FolderPicker.choose(
+            message: "Choose the folder Sortilege should watch (e.g. Downloads).") else {
+            return
         }
+        // The destination is required before the plan is shown: ask for
+        // it right away. Cancelling the destination prompt cancels the
+        // whole selection.
+        guard let destURL = FolderPicker.choose(
+            message: "Choose where \(watchURL.lastPathComponent) files should be sorted into. "
+                   + "Tip: pick a folder inside Documents so files get backed up.") else {
+            return
+        }
+        settings.setWatchFolder(watchURL)
+        settings.setDestFolder(destURL)
+        reviewPlan()
     }
 
     private func chooseDestFolder() {
