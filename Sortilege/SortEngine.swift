@@ -225,8 +225,8 @@ final class SortEngine: ObservableObject {
         // looks at the image itself: screenshot vs photo vs graphic.
         if AppSettings.shared.useAI, RuleClassifier.isImage(url),
            ai.isMultimodalAvailable,
-           let imageCategory = await ai.classifyImage(at: url) {
-            return (imageCategory.folderName, "AI")
+           let imageFolder = await ai.classifyImage(at: url) {
+            return (imageFolder, "AI")
         }
 
         // Tier 2 — Apple Intelligence reads the actual content.
@@ -234,9 +234,9 @@ final class SortEngine: ObservableObject {
            TextExtractor.textishExtensions.contains(url.pathExtension.lowercased()),
            ai.isAvailable,
            let text = TextExtractor.extract(from: url), !text.isEmpty,
-           let aiCategory = await ai.classify(
+           let aiFolder = await ai.classify(
                 filename: url.lastPathComponent, text: text) {
-            return (aiCategory.category.folderName, "AI")
+            return (aiFolder, "AI")
         }
 
         // Tier 1 — extension / UTType rules.

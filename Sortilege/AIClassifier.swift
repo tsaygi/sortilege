@@ -6,17 +6,23 @@
 //  Text classification needs macOS 26+; multimodal image classification
 //  needs macOS 27+. Falls back to rules when unavailable.
 //
+//  Classification asks the model to answer with a single keyword and maps
+//  it to a category explicitly — no Generable/guided-generation machinery,
+//  so this compiles against any FoundationModels SDK revision.
+//
 
 import Foundation
 
 #if canImport(FoundationModels)
 import FoundationModels
+#endif
 
-/// String-raw-value enums conform to `Generable` for guided generation.
-/// Synthesis only happens on the primary declaration, so the conformance
-/// is declared here (inside the availability-guarded region).
-@available(macOS 26.0, *)
-enum AICategory: String, CaseIterable, Generable {
+// MARK: - AI classification results
+
+/// Categories the on-device model can pick for text-bearing files.
+/// The raw values are the exact keywords the model is instructed to answer
+/// with; `folderName` is the destination folder.
+enum AICategory: String, CaseIterable {
     /// General documents: letters, reports, manuals, invoices, receipts, ebooks.
     case document
     /// Tabular or financial data, CSV-like content, ledgers.
@@ -28,21 +34,19 @@ enum AICategory: String, CaseIterable, Generable {
     /// Anything that is not covered above.
     case other
 
-    var category: Category {
+    var folderName: String {
         switch self {
-        case .document:     return .documents
-        case .spreadsheet:  return .spreadsheets
-        case .presentation: return .presentations
-        case .sourceCode:   return .code
-        case .other:        return .other
+        case .document:     return Category.documents.folderName
+        case .spreadsheet:  return Category.spreadsheets.folderName
+        case .presentation: return Category.presentations.folderName
+        case .sourceCode:   return Category.code.folderName
+        case .other:        return Category.other.folderName
         }
     }
 }
 
-/// Multimodal classification result for image files (macOS 27+).
-/// Guided generation forces the model to answer with one of these cases.
-@available(macOS 27.0, *)
-enum ImageCategory: String, CaseIterable, Generable {
+/// Categories the on-device model can pick for image files (macOS 27+).
+enum ImageCategory: String, CaseIterable {
     /// Screen captures: app windows, menus, dialogs, the desktop, any UI.
     case screenshot
     /// Real-world photographs taken by a camera.
@@ -58,7 +62,8 @@ enum ImageCategory: String, CaseIterable, Generable {
         }
     }
 }
-#endif
+
+// MARK: - Classifier
 
 final class AIClassifier {
 
@@ -97,7 +102,8 @@ final class AIClassifier {
         }
 
         let session = LanguageModelSession(instructions: """
-            You classify images for a file-organizing app. Categories:
+            You classify images for a file-organizing app.
+            Answer with exactly one word, nothing else:
             screenshot — screen captures of app windows, menus, dialogs,
             the desktop, or any user interface;
             photo — real-world photographs taken by a camera (people,
@@ -107,14 +113,18 @@ final class AIClassifier {
             Judge only by what is visible in the image itself.
             """)
 
-        // Multimodal PromptBuilder: text and image Attachment together.
-        // If your SDK names the initializer differently (e.g. Attachment(url:)),
+        // Multimodal prompt: text and image Attachment together. If your
+        // SDK names the initializer differently (e.g. Attachment(url:)),
         // adjust this one line.
-        let result = try? await session.respond(generating: ImageCategory.self) {
+        let response = try? await session.respond {
             "Classify this image into exactly one category."
             Attachment(imageURL: imageURL)
         }
-        return result?.content.folderName
+        guard let answer = response?.content,
+              let category = Self.match(ImageCategory.self, in: answer) else {
+            return nil
+        }
+        return category.folderName
         #else
         return nil
         #endif
@@ -132,11 +142,12 @@ final class AIClassifier {
 
         let session = LanguageModelSession(instructions: """
             You are the classification engine of a file-organizing app.
-            Classify the file described by the user into exactly one category:
-            document (letters, reports, manuals, invoices, receipts, ebooks),
-            spreadsheet (tabular data, financial data, CSV-like content),
-            presentation (slide decks), sourceCode (program source code or
-            configuration), or other (none of the above).
+            Answer with exactly one word, nothing else:
+            document — letters, reports, manuals, invoices, receipts, ebooks;
+            spreadsheet — tabular data, financial data, CSV-like content;
+            presentation — slide decks;
+            sourceCode — program source code or configuration;
+            other — none of the above.
             Judge by the actual content, not only the filename.
             """)
 
@@ -147,13 +158,33 @@ final class AIClassifier {
             \(text)
             """
 
-        // Guided generation: the response is a strongly-typed AICategory.
-        // If your SDK revision makes LanguageModelSession.init throwing,
-        // prefix the initializer above with `try`.
-        let response = try? await session.respond(to: prompt, generating: AICategory.self)
-        return response?.content.category.folderName
+        let response = try? await session.respond(to: prompt)
+        guard let answer = response?.content,
+              let category = Self.match(AICategory.self, in: answer) else {
+            return nil
+        }
+        return category.folderName
         #else
         return nil
         #endif
+    }
+
+    /// Maps a free-text model answer to a category. Tolerates stray
+    /// punctuation, casing, and surrounding words ("Document.",
+    /// "The answer is SOURCECODE").
+    private static func match<T: RawRepresentable & CaseIterable>(
+        _ type: T.Type, in answer: String
+    ) -> T? where T.RawValue == String {
+        let words = answer
+            .lowercased()
+            .split(whereSeparator: { $0.isWhitespace || $0.isPunctuation })
+        for word in words {
+            if let exact = T(rawValue: String(word)) { return exact }
+        }
+        for candidate in type.allCases as? [T] ?? [] {
+            let raw = candidate.rawValue
+            if answer.lowercased().contains(raw) { return candidate }
+        }
+        return nil
     }
 }
