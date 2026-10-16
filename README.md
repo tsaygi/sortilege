@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="sortilege.jpg" width="128" alt="Sortilege app icon" title="Sortilege">
+</p>
+
 # Sortilege
 
 **A macOS menu bar app that keeps your Downloads folder backed up.**

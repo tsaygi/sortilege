@@ -18,6 +18,9 @@ targets:
       - path: Sortilege
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    settings:
+      base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tsaygi.sortilege
         INFOPLIST_FILE: Config/Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Sortilege.entitlements
