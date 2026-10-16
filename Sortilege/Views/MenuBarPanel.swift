@@ -41,6 +41,17 @@ struct MenuBarPanel: View {
             Divider()
 
             HStack {
+                Button {
+                    if engine.isPaused {
+                        engine.resume()
+                    } else {
+                        engine.pause()
+                    }
+                } label: {
+                    Label(engine.isPaused ? "Resume" : "Pause",
+                          systemImage: engine.isPaused ? "play.fill" : "pause.fill")
+                }
+                .disabled(settings.watchBookmark == nil)
                 Spacer()
                 Button("Quit Sortilege") { NSApp.terminate(nil) }
                     .controlSize(.small)
@@ -170,18 +181,6 @@ struct MenuBarPanel: View {
 
     private var actionButtons: some View {
         HStack(spacing: 10) {
-            Button {
-                if engine.isPaused {
-                    engine.resume()
-                } else {
-                    engine.pause()
-                }
-            } label: {
-                Label(engine.isPaused ? "Resume" : "Pause",
-                      systemImage: engine.isPaused ? "play.fill" : "pause.fill")
-            }
-            .disabled(settings.watchBookmark == nil)
-
             Button {
                 Task { await engine.scan() }
             } label: {
