@@ -179,9 +179,14 @@ final class SortEngine: ObservableObject {
         guard let entries = try? fileManager.contentsOfDirectory(
             at: watchURL, includingPropertiesForKeys: keys) else { return }
 
+        let sortFolders = AppSettings.shared.sortFolders
         for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            guard let values = try? entry.resourceValues(forKeys: Set(keys)),
-                  values.isRegularFile == true else { continue }
+            guard let values = try? entry.resourceValues(forKeys: Set(keys)) else { continue }
+            // Folders are only considered when "move folders directly" is
+            // enabled; otherwise they are left at the source untouched.
+            if values.isRegularFile != true && !(sortFolders && values.isDirectory == true) {
+                continue
+            }
 
             let name = entry.lastPathComponent
             if name.hasPrefix(".") { continue }
@@ -476,9 +481,12 @@ final class SortEngine: ObservableObject {
         var processed = 0
         var remaining = 0
 
+        let sortFolders = AppSettings.shared.sortFolders
         for entry in items.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            guard let values = try? entry.resourceValues(forKeys: Set(keys)),
-                  values.isRegularFile == true else { continue }
+            guard let values = try? entry.resourceValues(forKeys: Set(keys)) else { continue }
+            if values.isRegularFile != true && !(sortFolders && values.isDirectory == true) {
+                continue
+            }
             let name = entry.lastPathComponent
             if name.hasPrefix(".") { continue }
             if Self.inFlightExtensions.contains(entry.pathExtension.lowercased()) { continue }

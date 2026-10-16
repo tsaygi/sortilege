@@ -21,6 +21,7 @@ final class AppSettings: ObservableObject {
         static let destBookmark = "sortilege.destBookmark"
         static let useAI = "sortilege.useAI"
         static let dryRun = "sortilege.dryRun"
+        static let sortFolders = "sortilege.sortFolders"
         static let history = "sortilege.history"
         static let rules = "sortilege.rules"
         static let filters = "sortilege.filters"
@@ -31,6 +32,10 @@ final class AppSettings: ObservableObject {
     @Published var destBookmark: Data?
     @Published var useAI: Bool
     @Published var dryRun: Bool
+    /// When true, top-level folders in the watch folder are moved whole
+    /// (classified by name/extension only — their contents are not
+    /// inspected). When false, folders are left untouched at the source.
+    @Published var sortFolders: Bool
     @Published var launchAtLogin: Bool {
         didSet { updateLoginItem() }
     }
@@ -54,6 +59,7 @@ final class AppSettings: ObservableObject {
         destBookmark = defaults.data(forKey: Key.destBookmark)
         useAI = defaults.object(forKey: Key.useAI) as? Bool ?? true
         dryRun = defaults.object(forKey: Key.dryRun) as? Bool ?? false
+        sortFolders = defaults.object(forKey: Key.sortFolders) as? Bool ?? false
         launchAtLogin = SMAppService.mainApp.status == .enabled
 
         if let data = defaults.data(forKey: Key.rules),
@@ -137,6 +143,7 @@ final class AppSettings: ObservableObject {
     func persistToggles() {
         defaults.set(useAI, forKey: Key.useAI)
         defaults.set(dryRun, forKey: Key.dryRun)
+        defaults.set(sortFolders, forKey: Key.sortFolders)
     }
 
     // MARK: Custom rules

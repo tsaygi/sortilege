@@ -49,6 +49,23 @@ struct SettingsWindow: View {
                 Toggle("Dry run — log planned moves without moving files",
                        isOn: dryRunBinding)
                 Toggle("Paused — stop watching and sorting", isOn: pausedBinding)
+                Toggle("Move folders directly", isOn: foldersBinding)
+                if settings.sortFolders {
+                    Label("""
+                        Top-level folders in the watch folder are moved whole into
+                        the category folder (classified by name and extension —
+                        their contents are never inspected).
+                        """, systemImage: "folder.badge.arrow.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("""
+                        Folders are left at the source without being processed —
+                        only top-level files are sorted.
+                        """, systemImage: "folder")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 Text("Sorting behavior")
             }
@@ -113,6 +130,12 @@ struct SettingsWindow: View {
         Binding(
             get: { settings.dryRun },
             set: { settings.dryRun = $0; settings.persistToggles() })
+    }
+
+    private var foldersBinding: Binding<Bool> {
+        Binding(
+            get: { settings.sortFolders },
+            set: { settings.sortFolders = $0; settings.persistToggles() })
     }
 
     private var pausedBinding: Binding<Bool> {
