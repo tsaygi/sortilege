@@ -299,15 +299,42 @@ final class SortEngine: ObservableObject {
 
     /// Moves a sorted file back to where it came from. Restored files are
     /// added to `skipPaths` so they are not automatically re-sorted for the
-    /// rest of the session.
+    /// rest of the session. Every failure path records a note so nothing
+    /// fails silently.
     func undo(_ recordID: MoveRecord.ID) {
         guard let index = history.firstIndex(where: { $0.id == recordID }) else { return }
         var entry = history[index]
-        guard entry.wasMoved, !entry.undone,
-              !entry.sourcePath.isEmpty, !entry.destinationPath.isEmpty else { return }
+
+        guard entry.wasMoved, !entry.undone else {
+            if !entry.wasMoved { entry.note = "cannot undo: the file was never moved" }
+            history[index] = entry
+            saveHistory()
+            return
+        }
+
+        guard !entry.sourcePath.isEmpty, !entry.destinationPath.isEmpty else {
+            entry.note = "cannot undo: missing source or destination path"
+            history[index] = entry
+            saveHistory()
+            return
+        }
 
         let from = URL(fileURLWithPath: entry.destinationPath)
         let backTo = URL(fileURLWithPath: entry.sourcePath)
+
+        // Explicit security-scoped access for both endpoints, from the
+        // stored bookmarks. Without an active scope the sandbox makes
+        // fileExists return false and moveItem throw.
+        var scopes: [URL] = []
+        for url in [AppSettings.shared.resolveWatchFolder(),
+                    AppSettings.shared.resolveDestFolder()].compactMap({ $0 }) {
+            if url.startAccessingSecurityScopedResource() {
+                scopes.append(url)
+            }
+        }
+        defer {
+            for url in scopes { url.stopAccessingSecurityScopedResource() }
+        }
 
         guard fileManager.fileExists(atPath: from.path) else {
             // Already moved or deleted elsewhere — don't keep offering undo.
@@ -328,6 +355,7 @@ final class SortEngine: ObservableObject {
             skipPaths.insert(entry.sourcePath)
         } catch {
             entry.note = "undo failed: " + error.localizedDescription
+            lastError = "Undo failed for \(entry.fileName): \(error.localizedDescription)"
         }
         history[index] = entry
         saveHistory()
