@@ -110,9 +110,18 @@ final class SettingsWindowController {
     /// appears in front of the still-open panel and stays in front of
     /// every ordinary app window until closed.
     private func bringToFront(_ window: NSWindow) {
-        window.level = NSWindow.Level(rawValue: NSStatusWindowLevel.rawValue + 1)
+        // The MenuBarExtra panel behaves like a popup menu and lives far
+        // above NSStatusWindowLevel on current macOS. Sit just above the
+        // popup-menu level so the window is in front of the lingering panel.
+        window.level = NSWindow.Level(rawValue: NSPopUpMenuWindowLevel.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
         window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
+        // Re-front once more after the panel has finished dismissing.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let window = self?.window, window.isVisible else { return }
+            window.orderFrontRegardless()
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 }
