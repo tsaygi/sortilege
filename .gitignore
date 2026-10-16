@@ -1,16 +1,72 @@
 # Xcode
-build/
-DerivedData/
-*.xcodeproj
-*.xcuserstate
+#
+# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+
+## User settings
 xcuserdata/
-*.xcarchive
-.DS_Store
+*.xcuserstate
+*.xcuserdatad/
+UIState.xcuserstate
 
-# Swift Package Manager
+## Xcode 8 and earlier
+*.xccheckout
+*.moved-aside
+*.psc
+
+## Obj-C/Swift specific
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Swift Package Manager
 .build/
-Packages/
+.swiftpm/
+Package.resolved
 
-# CocoaPods / Carthage
+## CocoaPods
 Pods/
+!Podfile.lock
+
+## Carthage
 Carthage/Build/
+
+## fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+## Code Injection
+iOSInjectionProject/
+
+## App Store packaging
+*.ipa
+*.xcarchive
+
+# Generated project
+Sortilege.xcodeproj
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (for HTML report tooling, if any)
+node_modules/
