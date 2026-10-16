@@ -458,10 +458,56 @@ final class SortEngine: ObservableObject {
 
     /// Mirrors scan()'s candidate selection, but records what WOULD happen
     /// (including filter skips) instead of moving anything.
-    /// Collects the current sort plan (no files are touched) for the
-    /// folder-plan review window.
-    func collectPlan() async -> [PreviewReport.Entry] {
-        await collectPreviewEntries()
+    /// Collects a QUICK sort plan for the folder-plan review window: only
+    /// the first `sampleLimit` candidate files are classified (AI calls can
+    /// take seconds per file on big folders); the remaining count is
+    /// reported via `remainingCount` so the UI can show "and N more".
+    func collectQuickPlan(sampleLimit: Int = 10) async
+        -> (entries: [PreviewReport.Entry], remainingCount: Int) {
+        guard let watchURL else { return ([], 0) }
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey, .isDirectoryKey, .contentModificationDateKey,
+            .addedToDirectoryDateKey
+        ]
+        guard let items = try? fileManager.contentsOfDirectory(
+            at: watchURL, includingPropertiesForKeys: keys) else { return ([], 0) }
+
+        var entries: [PreviewReport.Entry] = []
+        var processed = 0
+        var remaining = 0
+
+        for entry in items.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard let values = try? entry.resourceValues(forKeys: Set(keys)),
+                  values.isRegularFile == true else { continue }
+            let name = entry.lastPathComponent
+            if name.hasPrefix(".") { continue }
+            if Self.inFlightExtensions.contains(entry.pathExtension.lowercased()) { continue }
+            if let modified = values.contentModificationDate,
+               Date().timeIntervalSince(modified) < Self.minAge { continue }
+            if skipPaths.contains(entry.path) || AppSettings.shared.isIgnored(entry.path) {
+                continue
+            }
+            let fileDate = values.addedToDirectoryDate
+                ?? values.contentModificationDate ?? Date()
+            if !AppSettings.shared.shouldProcess(url: entry, fileDate: fileDate) {
+                continue
+            }
+
+            if processed < sampleLimit {
+                let (folder, decidedBy) = await classify(entry)
+                let destination = (destURL ?? watchURL)
+                    .appendingPathComponent(folder)
+                    .appendingPathComponent(name).path
+                entries.append(PreviewReport.Entry(
+                    fileName: name, sourcePath: entry.path,
+                    outcome: .move(folder: folder, decidedBy: decidedBy,
+                                  destination: destination)))
+                processed += 1
+            } else {
+                remaining += 1
+            }
+        }
+        return (entries, remaining)
     }
 
     private func collectPreviewEntries() async -> [PreviewReport.Entry] {

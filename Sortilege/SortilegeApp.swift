@@ -105,13 +105,15 @@ final class AuxiliaryWindowController {
     /// Plan review window for a newly selected folder. Replaces any
     /// previous plan window so only one review is ever open. Closing the
     /// window (red button) cancels the plan, same as the Cancel button.
-    func openPlanReview(watchPath: String, entries: [PreviewReport.Entry]) {
+    func openPlanReview(watchPath: String, entries: [PreviewReport.Entry],
+                        remainingCount: Int = 0) {
         planWindow?.close()
         let delegate = PlanWindowDelegate(onClose: cancelPlanSelection)
         let window = makeWindow(
             title: "Review Sort Plan",
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 480),
             view: PlanReviewWindow(watchPath: watchPath, entries: entries,
+                                   remainingCount: remainingCount,
                                    onCancel: cancelPlanSelection))
         window.delegate = delegate
         planWindow = window

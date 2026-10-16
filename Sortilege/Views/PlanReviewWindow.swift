@@ -14,6 +14,8 @@ import SwiftUI
 struct PlanReviewWindow: View {
     let watchPath: String
     let entries: [PreviewReport.Entry]
+    /// Candidate files beyond the classified sample (quick plan).
+    var remainingCount: Int = 0
     /// Invoked when the user cancels the plan (Cancel button or window
     /// close): clears both folder selections and returns the app to its
     /// first-run state.
@@ -68,7 +70,8 @@ struct PlanReviewWindow: View {
 
     private var planList: some View {
         List {
-            Section("\(moves.count) file(s) would move") {
+            Section("\(moves.count) file(s) would move"
+                    + (remainingCount > 0 ? " — showing first \(moves.count)" : "")) {
                 ForEach(Array(moves.enumerated()), id: \.offset) { _, entry in
                     if case let .move(folder, by, destination) = entry.outcome {
                         HStack {
@@ -116,6 +119,15 @@ struct PlanReviewWindow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(8)
+            }
+            if remainingCount > 0 {
+                HStack {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(.secondary)
+                    Text("\(remainingCount) more file(s) will be sorted the same way when you start — see the HTML report for the full list.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .listStyle(.inset)
