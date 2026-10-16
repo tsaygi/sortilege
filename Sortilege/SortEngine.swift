@@ -188,7 +188,15 @@ final class SortEngine: ObservableObject {
             destinationFolder.appendingPathComponent(url.lastPathComponent))
 
         if AppSettings.shared.dryRun {
-            guard !dryRunRecordedPaths.contains(url.path) else { return }
+            // Dedupe against history itself (survives restarts), not just
+            // this session: the same file with the same planned destination
+            // is recorded once. A real move for the same source path clears
+            // the dry-run record so it can be planned again later.
+            let duplicate = history.contains {
+                !$0.wasMoved && $0.sourcePath == url.path
+                    && $0.destinationPath == destination.path
+            }
+            guard !duplicate else { return }
             dryRunRecordedPaths.insert(url.path)
             record(MoveRecord(fileName: url.lastPathComponent,
                               folder: folder,
@@ -205,6 +213,11 @@ final class SortEngine: ObservableObject {
             try fileManager.createDirectory(at: destinationFolder,
                                             withIntermediateDirectories: true)
             try fileManager.moveItem(at: url, to: destination)
+            // The plan is now reality: drop stale dry-run entries for this
+            // file so it can be planned again if it ever returns.
+            history.removeAll {
+                !$0.wasMoved && $0.sourcePath == url.path
+            }
             record(MoveRecord(fileName: url.lastPathComponent,
                               folder: folder,
                               decidedBy: decidedBy,
