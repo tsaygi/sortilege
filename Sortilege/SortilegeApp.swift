@@ -65,15 +65,6 @@ struct SortilegeApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var settingsWindow: NSWindow?
-
-    /// Accessible from the menu bar panel (AppDelegate lives outside the
-    /// SwiftUI scene graph, so the panel can't reach it via environment).
-    static var shared: AppDelegate {
-        // Computed, not cached: always resolves the real adaptor instance
-        // (NSApp.delegate is set once the app object is initialized).
-        NSApp.delegate as? AppDelegate ?? AppDelegate()
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Tray-only app: no Dock icon (also enforced via LSUIElement).
@@ -83,17 +74,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Settings window: a plain NSWindow hosting the SwiftUI settings UI.
-    /// SwiftUI's Settings scene and openWindow proved unreliable in a
-    /// MenuBarExtra-only accessory (LSUIElement) app; a direct NSWindow
-    /// always comes to the front.
-    func openSettingsWindow() {
-        NSLog("Sortilege[diag]: openSettingsWindow called")
-        if let window = settingsWindow {
+}
+
+/// Owns the single Settings window. A dedicated singleton (not the app
+/// delegate) so the menu bar panel always reaches the same instance —
+/// NSApp.delegate is not always the adaptor instance in every launch mode.
+@MainActor
+final class SettingsWindowController {
+    static let shared = SettingsWindowController()
+    private var window: NSWindow?
+
+    func open() {
+        if let window = window {
             bringToFront(window)
             return
         }
-
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 620),
             styleMask: [.titled, .closable, .miniaturizable],
@@ -102,21 +97,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(rootView: SettingsWindow())
-        settingsWindow = window
+        self.window = window
         bringToFront(window)
     }
 
-    /// Accessory apps don't come forward on their own — activate, raise
-    /// above other apps' windows, and order front regardless.
+    /// Accessory apps don't come forward on their own. The MenuBarExtra
+    /// dropdown itself lives at status-bar level (NSStatusWindowLevel),
+    /// which sits far above .floating — so the settings window is raised
+    /// above that level first, then settles back to normal so it behaves
+    /// like a regular window afterwards.
     private func bringToFront(_ window: NSWindow) {
         NSApp.activate(ignoringOtherApps: true)
-        window.level = .floating
+        window.level = NSWindow.Level(rawValue: NSStatusWindowLevel.rawValue + 1)
         window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
-        DispatchQueue.main.async {
-            // Return to the normal level after activation completes so the
-            // window behaves like a regular document window afterwards.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             window.level = .normal
+            window.makeKeyAndOrderFront(nil)
         }
     }
 }

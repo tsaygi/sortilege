@@ -142,7 +142,7 @@ struct MenuBarPanel: View {
     /// app, so the settings UI is hosted in a plain NSWindow managed by
     /// the AppDelegate.
     private func openSettingsWindow() {
-        AppDelegate.shared.openSettingsWindow()
+        SettingsWindowController.shared.open()
     }
 
     private var settingsRow: some View {

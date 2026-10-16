@@ -48,6 +48,11 @@ final class SortEngine: ObservableObject {
     /// rest of the session so they are not automatically re-sorted.
     private var skipPaths: Set<String> = []
 
+    /// Paths already recorded as dry-run entries this session. In dry-run
+    /// mode nothing moves, so without this guard every periodic scan would
+    /// record the same file into history again and again.
+    private var dryRunRecordedPaths: Set<String> = []
+
     private init() {
         loadHistory()
     }
@@ -183,6 +188,8 @@ final class SortEngine: ObservableObject {
             destinationFolder.appendingPathComponent(url.lastPathComponent))
 
         if AppSettings.shared.dryRun {
+            guard !dryRunRecordedPaths.contains(url.path) else { return }
+            dryRunRecordedPaths.insert(url.path)
             record(MoveRecord(fileName: url.lastPathComponent,
                               folder: folder,
                               decidedBy: decidedBy,
