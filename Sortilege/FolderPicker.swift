@@ -17,7 +17,9 @@ enum FolderPicker {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.message = message
-        panel.prompt = "Watch This Folder"
+        // The confirm button must fit both flows: watching a folder and
+        // choosing the destination.
+        panel.prompt = "Choose"
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK else { return nil }
         return panel.url
