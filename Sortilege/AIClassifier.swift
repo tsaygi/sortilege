@@ -11,11 +11,15 @@ import Foundation
 
 #if canImport(FoundationModels)
 import FoundationModels
+
+@available(macOS 26.0, *)
+extension AICategory: Generable {}
+
+@available(macOS 26.0, *)
+extension ImageCategory: Generable {}
 #endif
 
-/// String-raw-value enums are supported by guided generation out of the box.
-/// If your SDK revision asks for an explicit conformance, change the
-/// declaration to:  enum AICategory: String, CaseIterable, Generable {
+/// String-raw-value enums conform to `Generable` for guided generation.
 enum AICategory: String, CaseIterable {
     /// General documents: letters, reports, manuals, invoices, receipts, ebooks.
     case document
