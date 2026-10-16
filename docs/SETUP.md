@@ -4,13 +4,27 @@ This guide walks you through turning the Swift sources in this repository into a
 
 ## 1. Create the Xcode project
 
+### Option A — generate it with XcodeGen (recommended)
+
+The repository includes a `project.yml` spec. With [XcodeGen](https://github.com/yonaskolb/XcodeGen) installed:
+
+```bash
+xcodegen
+open Sortilege.xcodeproj
+```
+
+This produces a ready-to-run project with all of steps 2–5 below already configured. Set your team under **Signing & Capabilities** and build with Xcode 26.
+
+### Option B — create it manually
+
 1. Xcode → **File → New → Project → macOS → App**
 2. Options:
    - Product Name: `Sortilege`
    - Interface: **SwiftUI**
    - Language: **Swift**
-   - Uncheck "Include Tests" (or keep them — optional)
-3. **Delete** the generated `ContentView.swift` and `SortilegeApp.swift`, then add all files from the [`Sortilege/`](../Sortilege/) directory of this repository. They contain everything: models, engine, UI, and the `@main` entry point.
+   - Testing System: any (or uncheck "Include Tests")
+   - Storage: **None**
+3. **Delete** the generated `ContentView.swift` and `SortilegeApp.swift`, then add all files from the [`Sortilege/`](../Sortilege/) directory of this repository, plus `Config/Info.plist`, `Config/Sortilege.entitlements`, and `Config/PrivacyInfo.xcprivacy` from the [`Config/`](../Config/) directory. They contain everything: models, engine, UI, and the `@main` entry point.
 
 ## 2. Info.plist (make it a tray-only app)
 

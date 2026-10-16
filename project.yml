@@ -1,0 +1,40 @@
+name: Sortilege
+options:
+  bundleIdPrefix: com.tsaygi
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.0.0"
+    DEVELOPMENT_ASSET_PATH: ""
+targets:
+  Sortilege:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sortilege
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tsaygi.sortilege
+        INFOPLIST_FILE: Config/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/Sortilege.entitlements
+        ENABLE_PREVIEWS: true
+        GENERATE_INFOPLIST_FILE: false
+        ENABLE_HARDENED_RUNTIME: true
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleDisplayName: Sortilege
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        LSUIElement: true
+        NSHumanReadableCopyright: ""
+        NSPrincipalClass: NSApplication
+    resources:
+      - path: Config/PrivacyInfo.xcprivacy
+        buildPhase: resources

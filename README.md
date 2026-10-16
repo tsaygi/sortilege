@@ -57,6 +57,7 @@ Sortilege/
 │   ├── Sortilege.entitlements
 │   ├── Info.plist
 │   └── PrivacyInfo.xcprivacy
+├── project.yml                   # XcodeGen spec → run `xcodegen` to get Sortilege.xcodeproj
 └── docs/
 ```
 
