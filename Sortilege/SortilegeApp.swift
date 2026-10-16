@@ -120,7 +120,7 @@ final class AuxiliaryWindowController {
     /// appears in front of the still-open panel and stays in front of
     /// every ordinary app window until closed.
     private func bringToFront(_ window: NSWindow) {
-        window.level = NSWindow.Level(rawValue: NSPopUpMenuWindowLevel.rawValue + 1)
+        window.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
         window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
