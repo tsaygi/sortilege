@@ -26,6 +26,8 @@ struct MenuBarPanel: View {
 
             if settings.watchBookmark == nil {
                 firstRunPrompt
+                Divider()
+                settingsRow
             } else {
                 folderRows
                 Divider()
