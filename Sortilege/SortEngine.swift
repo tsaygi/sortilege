@@ -58,6 +58,12 @@ final class SortEngine: ObservableObject {
 
     private init() {
         loadHistory()
+        // Restore the persisted pause immediately (not just in start()):
+        // the menu panel can render before the launch task runs start(),
+        // and it must show the true state from the first frame.
+        if AppSettings.shared.startPaused {
+            isPaused = true
+        }
     }
 
     // MARK: Lifecycle
