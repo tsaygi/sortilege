@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// MenuBarExtra-only accessory (LSUIElement) app; a direct NSWindow
     /// always comes to the front.
     func openSettingsWindow() {
+        NSLog("Sortilege[diag]: openSettingsWindow called")
         if let window = settingsWindow {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)

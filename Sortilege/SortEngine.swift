@@ -302,9 +302,14 @@ final class SortEngine: ObservableObject {
     /// rest of the session. Every failure path records a note so nothing
     /// fails silently.
     func undo(_ recordID: MoveRecord.ID) {
-        guard let index = history.firstIndex(where: { $0.id == recordID }) else { return }
+        NSLog("Sortilege[diag]: undo called for \(recordID)")
+        guard let index = history.firstIndex(where: { $0.id == recordID }) else {
+            NSLog("Sortilege[diag]: undo aborted — record not found in history")
+            return
+        }
         var entry = history[index]
 
+        NSLog("Sortilege[diag]: undo record found: fileName=\(entry.fileName) wasMoved=\(entry.wasMoved) undone=\(entry.undone) src=\(entry.sourcePath) dst=\(entry.destinationPath)")
         guard entry.wasMoved, !entry.undone else {
             if !entry.wasMoved { entry.note = "cannot undo: the file was never moved" }
             history[index] = entry
@@ -336,6 +341,7 @@ final class SortEngine: ObservableObject {
             for url in scopes { url.stopAccessingSecurityScopedResource() }
         }
 
+        NSLog("Sortilege[diag]: undo checking source exists at \(from.path): \(fileManager.fileExists(atPath: from.path))")
         guard fileManager.fileExists(atPath: from.path) else {
             // Already moved or deleted elsewhere — don't keep offering undo.
             entry.undone = true
@@ -353,7 +359,9 @@ final class SortEngine: ObservableObject {
             try fileManager.moveItem(at: from, to: uniqueDestination(backTo))
             entry.undone = true
             skipPaths.insert(entry.sourcePath)
+            NSLog("Sortilege[diag]: undo succeeded — moved back to \(backTo.path)")
         } catch {
+            NSLog("Sortilege[diag]: undo moveItem threw: \(error)")
             entry.note = "undo failed: " + error.localizedDescription
             lastError = "Undo failed for \(entry.fileName): \(error.localizedDescription)"
         }
