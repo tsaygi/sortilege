@@ -13,7 +13,7 @@ import ServiceManagement
 
 @MainActor
 final class AppSettings: ObservableObject {
-    static let shared = Settings()
+    static let shared = AppSettings()
     private let defaults = UserDefaults.standard
 
     private enum Key {
