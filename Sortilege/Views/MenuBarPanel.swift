@@ -137,18 +137,12 @@ struct MenuBarPanel: View {
 
     // MARK: Settings access
 
-    @Environment(\.openSettings) private var openSettings
-
-    /// Opens the Settings scene. openSettings() alone is unreliable from a
-    /// MenuBarExtra window in accessory (tray-only) apps — activate the app
-    /// first, then fall back to the responder-chain selector if needed.
+    /// Opens the Settings window. The Settings scene does not open
+    /// reliably in MenuBarExtra-only accessory apps, so Settings lives in
+    /// a regular Window scene opened via openWindow.
     private func openSettingsWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        if #available(macOS 14.0, *) {
-            openSettings()
-        } else {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        }
+        openWindow(id: "settings")
     }
 
     private var settingsRow: some View {

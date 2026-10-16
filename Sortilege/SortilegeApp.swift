@@ -62,9 +62,10 @@ struct SortilegeApp: App {
             ActivityWindow()
         }
 
-        // Standard Settings scene: "Settings…" appears in the Sortilege
-        // app menu and works with ⌘,. All configuration lives here.
-        Settings {
+        // Settings window. A plain Window (not the Settings scene) is used
+        // because the Settings scene does not open reliably in a
+        // MenuBarExtra-only accessory (LSUIElement) app.
+        Window("Settings", id: "settings") {
             SettingsWindow()
         }
     }
