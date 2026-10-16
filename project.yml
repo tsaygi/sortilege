@@ -19,8 +19,6 @@ targets:
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    settings:
-      base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tsaygi.sortilege
         INFOPLIST_FILE: Config/Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Sortilege.entitlements
@@ -37,8 +35,11 @@ targets:
         LSMinimumSystemVersion: "14.0"
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.productivity
+        CFBundleIconFile: AppIcon
         NSHumanReadableCopyright: ""
         NSPrincipalClass: NSApplication
     resources:
       - path: Config/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - path: Sortilege/Assets.xcassets/AppIcon.appiconset/AppIcon.icns
         buildPhase: resources
