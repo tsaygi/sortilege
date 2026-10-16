@@ -102,12 +102,15 @@ final class SettingsWindowController {
     }
 
     /// Accessory apps don't come forward on their own, and they deactivate
-    /// the moment the MenuBarExtra dropdown closes — a .normal level window
-    /// is then pushed behind the frontmost app immediately. The settings
-    /// window therefore stays at .floating while open (above ordinary app
-    /// windows, below the dropdown itself, which lives at status-bar level).
+    /// when the MenuBarExtra dropdown closes — a .normal level window is
+    /// then pushed behind the frontmost app immediately. The dropdown panel
+    /// itself lives at status-bar level (NSStatusWindowLevel, far above
+    /// .floating) and stays visible briefly after the Settings click, so
+    /// the settings window is kept just ABOVE that level while open: it
+    /// appears in front of the still-open panel and stays in front of
+    /// every ordinary app window until closed.
     private func bringToFront(_ window: NSWindow) {
-        window.level = .floating
+        window.level = NSWindow.Level(rawValue: NSStatusWindowLevel.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
         window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
