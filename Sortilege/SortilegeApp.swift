@@ -82,6 +82,7 @@ final class AuxiliaryWindowController {
     private var settingsWindow: NSWindow?
     private var activityWindow: NSWindow?
     private var planWindow: NSWindow?
+    private var planDelegate: PlanWindowDelegate?
 
     func openSettings() {
         let window = settingsWindow ?? makeWindow(
@@ -102,22 +103,43 @@ final class AuxiliaryWindowController {
     }
 
     /// Plan review window for a newly selected folder. Replaces any
-    /// previous plan window so only one review is ever open.
+    /// previous plan window so only one review is ever open. Closing the
+    /// window (red button) cancels the plan, same as the Cancel button.
     func openPlanReview(watchPath: String, entries: [PreviewReport.Entry]) {
         planWindow?.close()
+        let delegate = PlanWindowDelegate(onClose: cancelPlanSelection)
         let window = makeWindow(
             title: "Review Sort Plan",
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 480),
-            view: PlanReviewWindow(watchPath: watchPath, entries: entries))
+            view: PlanReviewWindow(watchPath: watchPath, entries: entries,
+                                   onCancel: cancelPlanSelection))
+        window.delegate = delegate
         planWindow = window
+        planDelegate = delegate
         bringToFront(window)
     }
 
-    /// Closes the plan review window (the plan window is not a SwiftUI
-    /// scene, so dismiss() inside it cannot close it).
+    /// Closes the plan review window WITHOUT cancelling (used by the
+    /// Start Sorting button). The plan window is not a SwiftUI scene, so
+    /// dismiss() inside it cannot close it.
     func closePlanReview() {
+        // Detach the delegate first: closing the window here is a
+        // confirmation, not a cancel.
+        planWindow?.delegate = nil
+        planDelegate = nil
         planWindow?.close()
         planWindow = nil
+    }
+
+    /// Full cancel: clears both folder selections, stops watching, and
+    /// returns the app to its first-run state ("Set…" in the dropdown).
+    private func cancelPlanSelection() {
+        planWindow?.delegate = nil
+        planDelegate = nil
+        planWindow?.close()
+        planWindow = nil
+        AppSettings.shared.clearAllFolders()
+        SortEngine.shared.cancelPlan()
     }
 
     private func makeWindow(title: String, contentRect: NSRect, view: some View) -> NSWindow {
@@ -150,5 +172,19 @@ final class AuxiliaryWindowController {
             window.orderFrontRegardless()
             window.makeKeyAndOrderFront(nil)
         }
+    }
+}
+
+/// Window delegate for the plan review window: treats a user close of the
+/// window as cancelling the folder selection.
+final class PlanWindowDelegate: NSObject, NSWindowDelegate {
+    let onClose: () -> Void
+
+    init(onClose: @escaping () -> Void) {
+        self.onClose = onClose
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose()
     }
 }

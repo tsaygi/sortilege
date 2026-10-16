@@ -99,6 +99,13 @@ final class SortEngine: ObservableObject {
         Task { await scan() }
     }
 
+    /// Full cancel of the folder selection: unpause and reload with no
+    /// folders configured — the engine stops watching entirely.
+    func cancelPlan() {
+        isPaused = false
+        reload()
+    }
+
     // MARK: Realtime watcher
 
     private func startWatcher() {

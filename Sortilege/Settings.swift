@@ -87,9 +87,21 @@ final class AppSettings: ObservableObject {
         defaults.set(destBookmark ?? Data(), forKey: Key.destBookmark)
     }
 
+    func clearWatchFolder() {
+        watchBookmark = nil
+        defaults.removeObject(forKey: Key.watchBookmark)
+    }
+
     func clearDestFolder() {
         destBookmark = nil
         defaults.removeObject(forKey: Key.destBookmark)
+    }
+
+    /// Clears both folder selections — the full cancel for the folder
+    /// plan review: the app returns to its first-run state.
+    func clearAllFolders() {
+        clearWatchFolder()
+        clearDestFolder()
     }
 
     func resolveWatchFolder() -> URL? {

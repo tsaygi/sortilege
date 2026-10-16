@@ -14,6 +14,10 @@ import SwiftUI
 struct PlanReviewWindow: View {
     let watchPath: String
     let entries: [PreviewReport.Entry]
+    /// Invoked when the user cancels the plan (Cancel button or window
+    /// close): clears both folder selections and returns the app to its
+    /// first-run state.
+    var onCancel: () -> Void
 
     @ObservedObject private var engine = SortEngine.shared
 
@@ -119,6 +123,9 @@ struct PlanReviewWindow: View {
 
     private var footer: some View {
         HStack {
+            Button("Cancel") {
+                cancel()
+            }
             Spacer()
             Button("Open HTML Report") {
                 Task { await engine.generatePreviewReport() }
@@ -131,5 +138,10 @@ struct PlanReviewWindow: View {
             .buttonStyle(.borderedProminent)
         }
         .padding(12)
+    }
+
+    private func cancel() {
+        AuxiliaryWindowController.shared.closePlanReview()
+        onCancel()
     }
 }

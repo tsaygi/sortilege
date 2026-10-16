@@ -93,7 +93,7 @@ struct MenuBarPanel: View {
                  + "in a location your backups actually include.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("Choose Folder…") { chooseWatchFolder() }
+            Button("Set…") { chooseWatchFolder() }
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
