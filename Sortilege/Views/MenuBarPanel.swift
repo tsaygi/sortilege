@@ -142,7 +142,7 @@ struct MenuBarPanel: View {
     /// app, so the settings UI is hosted in a plain NSWindow managed by
     /// the AppDelegate.
     private func openSettingsWindow() {
-        SettingsWindowController.shared.open()
+        AuxiliaryWindowController.shared.openSettings()
     }
 
     private var settingsRow: some View {
@@ -164,7 +164,6 @@ struct MenuBarPanel: View {
 
     // MARK: Actions
 
-    @Environment(\.openWindow) private var openWindow
 
     private var actionButtons: some View {
         HStack(spacing: 10) {
@@ -185,7 +184,7 @@ struct MenuBarPanel: View {
             .disabled(engine.isScanning || engine.isGeneratingPreview)
 
             Button {
-                openWindow(id: "activity")
+                AuxiliaryWindowController.shared.openActivity()
             } label: {
                 Label("Undo…", systemImage: "arrow.uturn.backward")
             }

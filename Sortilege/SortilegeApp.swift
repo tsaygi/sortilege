@@ -57,10 +57,6 @@ struct SortilegeApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        // Activity & Undo window, opened from the dropdown's "Undo…" button.
-        Window("Activity & Undo", id: "activity") {
-            ActivityWindow()
-        }
     }
 }
 
@@ -76,50 +72,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 }
 
-/// Owns the single Settings window. A dedicated singleton (not the app
-/// delegate) so the menu bar panel always reaches the same instance —
-/// NSApp.delegate is not always the adaptor instance in every launch mode.
+/// Owns the app's single-instance auxiliary windows (Settings, Activity
+/// & Undo). A dedicated singleton (not the app delegate) so the menu bar
+/// panel always reaches the same instance — NSApp.delegate is not always
+/// the adaptor instance in every launch mode.
 @MainActor
-final class SettingsWindowController {
-    static let shared = SettingsWindowController()
-    private var window: NSWindow?
+final class AuxiliaryWindowController {
+    static let shared = AuxiliaryWindowController()
+    private var settingsWindow: NSWindow?
+    private var activityWindow: NSWindow?
 
-    func open() {
-        if let window = window {
-            bringToFront(window)
-            return
-        }
-        let window = NSWindow(
+    func openSettings() {
+        let window = settingsWindow ?? makeWindow(
+            title: "Sortilege Settings",
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 620),
-            styleMask: [.titled, .closable, .miniaturizable],
+            view: SettingsWindow())
+        settingsWindow = window
+        bringToFront(window)
+    }
+
+    func openActivity() {
+        let window = activityWindow ?? makeWindow(
+            title: "Activity & Undo",
+            contentRect: NSRect(x: 0, y: 0, width: 660, height: 460),
+            view: ActivityWindow())
+        activityWindow = window
+        bringToFront(window)
+    }
+
+    private func makeWindow(title: String, contentRect: NSRect, view: some View) -> NSWindow {
+        let window = NSWindow(
+            contentRect: contentRect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false)
-        window.title = "Sortilege Settings"
+        window.title = title
         window.isReleasedWhenClosed = false
         window.center()
-        window.contentView = NSHostingView(rootView: SettingsWindow())
-        self.window = window
-        bringToFront(window)
+        window.contentView = NSHostingView(rootView: view)
+        return window
     }
 
     /// Accessory apps don't come forward on their own, and they deactivate
     /// when the MenuBarExtra dropdown closes — a .normal level window is
     /// then pushed behind the frontmost app immediately. The dropdown panel
-    /// itself lives at status-bar level (NSStatusWindowLevel, far above
-    /// .floating) and stays visible briefly after the Settings click, so
-    /// the settings window is kept just ABOVE that level while open: it
+    /// itself behaves like a popup menu and lives far above .floating. The
+    /// window is kept just above the popup-menu level while open: it
     /// appears in front of the still-open panel and stays in front of
     /// every ordinary app window until closed.
     private func bringToFront(_ window: NSWindow) {
-        // The MenuBarExtra panel behaves like a popup menu and lives far
-        // above NSStatusWindowLevel on current macOS. Sit just above the
-        // popup-menu level so the window is in front of the lingering panel.
         window.level = NSWindow.Level(rawValue: NSPopUpMenuWindowLevel.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
         window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
         // Re-front once more after the panel has finished dismissing.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let window = self?.window, window.isVisible else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak window] in
+            guard let window = window, window.isVisible else { return }
             window.orderFrontRegardless()
             window.makeKeyAndOrderFront(nil)
         }
