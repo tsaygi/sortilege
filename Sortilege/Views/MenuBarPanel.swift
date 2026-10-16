@@ -137,12 +137,12 @@ struct MenuBarPanel: View {
 
     // MARK: Settings access
 
-    /// Opens the Settings window. The Settings scene does not open
-    /// reliably in MenuBarExtra-only accessory apps, so Settings lives in
-    /// a regular Window scene opened via openWindow.
+    /// Opens the Settings window. SwiftUI scene machinery (Settings scene,
+    /// openWindow) proved unreliable in this MenuBarExtra-only accessory
+    /// app, so the settings UI is hosted in a plain NSWindow managed by
+    /// the AppDelegate.
     private func openSettingsWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        openWindow(id: "settings")
+        AppDelegate.shared.openSettingsWindow()
     }
 
     private var settingsRow: some View {
