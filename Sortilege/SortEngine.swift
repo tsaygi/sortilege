@@ -65,6 +65,11 @@ final class SortEngine: ObservableObject {
     /// Called once at app launch.
     func start() {
         aiAvailable = ai.isAvailable
+        // Restore the persisted pause: if the user paused sorting before
+        // quitting, the engine stays paused after relaunch.
+        if AppSettings.shared.startPaused {
+            isPaused = true
+        }
         reload()
     }
 
@@ -91,11 +96,15 @@ final class SortEngine: ObservableObject {
     /// newly selected folder.
     func pause() {
         isPaused = true
+        AppSettings.shared.startPaused = true
+        AppSettings.shared.persistToggles()
     }
 
     /// Lifts the pause and runs an immediate scan.
     func resume() {
         isPaused = false
+        AppSettings.shared.startPaused = false
+        AppSettings.shared.persistToggles()
         Task { await scan() }
     }
 

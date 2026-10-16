@@ -22,6 +22,7 @@ final class AppSettings: ObservableObject {
         static let useAI = "sortilege.useAI"
         static let dryRun = "sortilege.dryRun"
         static let sortFolders = "sortilege.sortFolders"
+        static let startPaused = "sortilege.startPaused"
         static let history = "sortilege.history"
         static let rules = "sortilege.rules"
         static let filters = "sortilege.filters"
@@ -36,6 +37,9 @@ final class AppSettings: ObservableObject {
     /// (classified by name/extension only — their contents are not
     /// inspected). When false, folders are left untouched at the source.
     @Published var sortFolders: Bool
+    /// When true, the engine starts paused after launch (the user paused
+    /// sorting before quitting). Persisted so the pause survives restarts.
+    @Published var startPaused: Bool
     @Published var launchAtLogin: Bool {
         didSet { updateLoginItem() }
     }
@@ -60,6 +64,7 @@ final class AppSettings: ObservableObject {
         useAI = defaults.object(forKey: Key.useAI) as? Bool ?? true
         dryRun = defaults.object(forKey: Key.dryRun) as? Bool ?? false
         sortFolders = defaults.object(forKey: Key.sortFolders) as? Bool ?? false
+        startPaused = defaults.object(forKey: Key.startPaused) as? Bool ?? false
         launchAtLogin = SMAppService.mainApp.status == .enabled
 
         if let data = defaults.data(forKey: Key.rules),
@@ -144,6 +149,7 @@ final class AppSettings: ObservableObject {
         defaults.set(useAI, forKey: Key.useAI)
         defaults.set(dryRun, forKey: Key.dryRun)
         defaults.set(sortFolders, forKey: Key.sortFolders)
+        defaults.set(startPaused, forKey: Key.startPaused)
     }
 
     // MARK: Custom rules
