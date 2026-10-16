@@ -101,19 +101,15 @@ final class SettingsWindowController {
         bringToFront(window)
     }
 
-    /// Accessory apps don't come forward on their own. The MenuBarExtra
-    /// dropdown itself lives at status-bar level (NSStatusWindowLevel),
-    /// which sits far above .floating — so the settings window is raised
-    /// above that level first, then settles back to normal so it behaves
-    /// like a regular window afterwards.
+    /// Accessory apps don't come forward on their own, and they deactivate
+    /// the moment the MenuBarExtra dropdown closes — a .normal level window
+    /// is then pushed behind the frontmost app immediately. The settings
+    /// window therefore stays at .floating while open (above ordinary app
+    /// windows, below the dropdown itself, which lives at status-bar level).
     private func bringToFront(_ window: NSWindow) {
+        window.level = .floating
         NSApp.activate(ignoringOtherApps: true)
-        window.level = NSWindow.Level(rawValue: NSStatusWindowLevel.rawValue + 1)
         window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            window.level = .normal
-            window.makeKeyAndOrderFront(nil)
-        }
     }
 }
