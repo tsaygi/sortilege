@@ -53,6 +53,7 @@ struct MenuBarPanel: View {
     // MARK: Header
 
     private var statusLine: String {
+        if engine.isPaused { return "Paused — no files are being moved" }
         if engine.isGeneratingPreview { return "Generating preview report…" }
         if engine.isScanning { return "Scanning…" }
         var line = "Watching in the background · \(engine.movedToday) moved today"
@@ -170,11 +171,23 @@ struct MenuBarPanel: View {
     private var actionButtons: some View {
         HStack(spacing: 10) {
             Button {
+                if engine.isPaused {
+                    engine.resume()
+                } else {
+                    engine.pause()
+                }
+            } label: {
+                Label(engine.isPaused ? "Resume" : "Pause",
+                      systemImage: engine.isPaused ? "play.fill" : "pause.fill")
+            }
+            .disabled(settings.watchBookmark == nil)
+
+            Button {
                 Task { await engine.scan() }
             } label: {
                 Label("Scan Now", systemImage: "arrow.triangle.2.circlepath")
             }
-            .disabled(engine.isScanning || engine.isGeneratingPreview)
+            .disabled(engine.isPaused || engine.isScanning || engine.isGeneratingPreview)
 
             // Dry run: simulate the full sort and open an HTML report in
             // the default browser showing where every file would go.

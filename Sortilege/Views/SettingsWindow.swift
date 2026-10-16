@@ -48,6 +48,7 @@ struct SettingsWindow: View {
             Section {
                 Toggle("Dry run — log planned moves without moving files",
                        isOn: dryRunBinding)
+                Toggle("Paused — stop watching and sorting", isOn: pausedBinding)
             } header: {
                 Text("Sorting behavior")
             }
@@ -112,6 +113,18 @@ struct SettingsWindow: View {
         Binding(
             get: { settings.dryRun },
             set: { settings.dryRun = $0; settings.persistToggles() })
+    }
+
+    private var pausedBinding: Binding<Bool> {
+        Binding(
+            get: { engine.isPaused },
+            set: { paused in
+                if paused {
+                    engine.pause()
+                } else {
+                    engine.resume()
+                }
+            })
     }
 
     // MARK: Folders
