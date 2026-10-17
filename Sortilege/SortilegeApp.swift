@@ -83,6 +83,7 @@ final class AuxiliaryWindowController {
     private var activityWindow: NSWindow?
     private var planWindow: NSWindow?
     private var planDelegate: PlanWindowDelegate?
+    private var planWatchPath: String = ""
 
     func openSettings() {
         let window = settingsWindow ?? makeWindow(
@@ -106,18 +107,36 @@ final class AuxiliaryWindowController {
     /// previous plan window so only one review is ever open. Closing the
     /// window (red button) cancels the plan, same as the Cancel button.
     func openPlanReview(watchPath: String, entries: [PreviewReport.Entry],
-                        remainingCount: Int = 0) {
+                        remainingCount: Int = 0, isCollecting: Bool = false) {
         planWindow?.close()
+        planWatchPath = watchPath
         let delegate = PlanWindowDelegate(onClose: cancelPlanSelection)
         let window = makeWindow(
             title: "Review Sort Plan",
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 480),
             view: PlanReviewWindow(watchPath: watchPath, entries: entries,
                                    remainingCount: remainingCount,
+                                   isCollecting: isCollecting,
                                    onCancel: cancelPlanSelection))
         window.delegate = delegate
         planWindow = window
         planDelegate = delegate
+        bringToFront(window)
+    }
+
+    /// Opens the plan window immediately in its "collecting" state so the
+    /// user sees progress on big folders instead of nothing.
+    func openPlanReviewCollecting(watchPath: String) {
+        openPlanReview(watchPath: watchPath, entries: [], isCollecting: true)
+    }
+
+    /// Flips an open collecting plan window to the finished plan.
+    func finishPlanReview(entries: [PreviewReport.Entry], remainingCount: Int) {
+        guard let window = planWindow else { return }
+        window.contentView = NSHostingView(rootView: PlanReviewWindow(
+            watchPath: planWatchPath,
+            entries: entries, remainingCount: remainingCount,
+            isCollecting: false, onCancel: cancelPlanSelection))
         bringToFront(window)
     }
 

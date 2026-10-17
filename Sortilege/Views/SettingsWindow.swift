@@ -282,10 +282,11 @@ struct SettingsWindow: View {
     private func reviewPlan() {
         engine.pause()
         engine.reload()
+        AuxiliaryWindowController.shared.openPlanReviewCollecting(
+            watchPath: engine.watchPath ?? "")
         Task { @MainActor in
             let plan = await engine.collectQuickPlan()
-            AuxiliaryWindowController.shared.openPlanReview(
-                watchPath: engine.watchPath ?? "",
+            AuxiliaryWindowController.shared.finishPlanReview(
                 entries: plan.entries,
                 remainingCount: plan.remainingCount)
         }

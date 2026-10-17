@@ -22,6 +22,9 @@ final class SortEngine: ObservableObject {
     @Published private(set) var destPath: String?
     @Published private(set) var aiAvailable = false
     @Published private(set) var isGeneratingPreview = false
+    /// Progress while collecting the plan or generating the report:
+    /// index = files processed so far, total = candidate count.
+    @Published private(set) var planProgress = (index: 0, total: 0)
     @Published var lastError: String?
     /// True while the user is reviewing the plan for a newly selected
     /// folder. The engine does not scan or move anything while paused.
@@ -458,7 +461,11 @@ final class SortEngine: ObservableObject {
         }
         isGeneratingPreview = true
         lastError = nil
-        defer { isGeneratingPreview = false }
+        planProgress = (index: 0, total: 0)
+        defer {
+            isGeneratingPreview = false
+            planProgress = (index: 0, total: 0)
+        }
 
         let entries = await collectPreviewEntries()
 
@@ -495,8 +502,12 @@ final class SortEngine: ObservableObject {
         var entries: [PreviewReport.Entry] = []
         var processed = 0
         var remaining = 0
-
         let sortFolders = AppSettings.shared.sortFolders
+        planProgress = (index: 0, total: 0)
+
+        // First pass: gather candidates cheaply (no AI) so the progress
+        // indicator can show a real total before classification begins.
+        var candidates: [URL] = []
         for entry in items.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard let values = try? entry.resourceValues(forKeys: Set(keys)) else { continue }
             if values.isRegularFile != true && !(sortFolders && values.isDirectory == true) {
@@ -515,7 +526,13 @@ final class SortEngine: ObservableObject {
             if !AppSettings.shared.shouldProcess(url: entry, fileDate: fileDate) {
                 continue
             }
+            candidates.append(entry)
+        }
+        let sortFoldersUsed = min(candidates.count, sampleLimit)
+        planProgress = (index: 0, total: sortFoldersUsed)
 
+        for entry in candidates {
+            let name = entry.lastPathComponent
             if processed < sampleLimit {
                 let (folder, decidedBy) = await classify(entry)
                 let destination = (destURL ?? watchURL)
@@ -526,6 +543,7 @@ final class SortEngine: ObservableObject {
                     outcome: .move(folder: folder, decidedBy: decidedBy,
                                   destination: destination)))
                 processed += 1
+                planProgress = (index: processed, total: sortFoldersUsed)
             } else {
                 remaining += 1
             }

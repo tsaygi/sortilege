@@ -16,6 +16,9 @@ struct PlanReviewWindow: View {
     let entries: [PreviewReport.Entry]
     /// Candidate files beyond the classified sample (quick plan).
     var remainingCount: Int = 0
+    /// While the plan is being collected: a spinner/progress replaces the
+    /// list so big folders don't look frozen.
+    var isCollecting: Bool = false
     /// Invoked when the user cancels the plan (Cancel button or window
     /// close): clears both folder selections and returns the app to its
     /// first-run state.
@@ -41,11 +44,41 @@ struct PlanReviewWindow: View {
         VStack(spacing: 0) {
             header
             Divider()
-            planList
+            if isCollecting {
+                collectingView
+            } else {
+                planList
+            }
             Divider()
             footer
         }
         .frame(minWidth: 640, minHeight: 420)
+    }
+
+    private var collectingView: some View {
+        VStack(spacing: 14) {
+            ProgressView(value: progressFraction)
+                .progressViewStyle(.linear)
+                .frame(maxWidth: 320)
+            Text(progressText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var progressFraction: Double {
+        let (index, total) = engine.planProgress
+        guard total > 0 else { return 0 }
+        return Double(index) / Double(total)
+    }
+
+    private var progressText: String {
+        let (index, total) = engine.planProgress
+        if total > 0 {
+            return "Analyzing files… \(index) of \(total)"
+        }
+        return "Analyzing files…"
     }
 
     private var header: some View {
@@ -142,12 +175,13 @@ struct PlanReviewWindow: View {
             Button("Open HTML Report") {
                 Task { await engine.generatePreviewReport() }
             }
-            .disabled(engine.isGeneratingPreview)
+            .disabled(isCollecting || engine.isGeneratingPreview)
             Button("Start Sorting") {
                 engine.resume()
                 AuxiliaryWindowController.shared.closePlanReview()
             }
             .buttonStyle(.borderedProminent)
+            .disabled(isCollecting)
         }
         .padding(12)
     }

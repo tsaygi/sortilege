@@ -24,6 +24,27 @@ struct MenuBarPanel: View {
 
             Divider()
 
+            if engine.isGeneratingPreview {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Generating HTML report…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    let progress = engine.planProgress
+                    if progress.total > 0 {
+                        ProgressView(value: Double(progress.index) / Double(progress.total))
+                            .progressViewStyle(.linear)
+                        Text("\(progress.index) of \(progress.total) files analyzed")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Divider()
+            }
+
             if settings.watchBookmark == nil {
                 firstRunPrompt
                 Divider()
@@ -248,10 +269,11 @@ struct MenuBarPanel: View {
     private func reviewPlan() {
         engine.pause()
         engine.reload()
+        AuxiliaryWindowController.shared.openPlanReviewCollecting(
+            watchPath: engine.watchPath ?? "")
         Task { @MainActor in
             let plan = await engine.collectQuickPlan()
-            AuxiliaryWindowController.shared.openPlanReview(
-                watchPath: engine.watchPath ?? "",
+            AuxiliaryWindowController.shared.finishPlanReview(
                 entries: plan.entries,
                 remainingCount: plan.remainingCount)
         }
