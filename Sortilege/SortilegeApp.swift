@@ -106,35 +106,39 @@ final class AuxiliaryWindowController {
     /// Plan review window for a newly selected folder. Replaces any
     /// previous plan window so only one review is ever open. Closing the
     /// window (red button) cancels the plan, same as the Cancel button.
-    func openPlanReview(watchPath: String) {
-        // Detach the delegate first: closing the previous plan window here
-        // is a replace, not a user cancel.
-        planWindow?.delegate = nil
-        planDelegate = nil
+    func openPlanReview(watchPath: String, entries: [PreviewReport.Entry],
+                        remainingCount: Int = 0, isCollecting: Bool = false) {
         planWindow?.close()
         planWatchPath = watchPath
         let delegate = PlanWindowDelegate(onClose: cancelPlanSelection)
         let window = makeWindow(
             title: "Review Sort Plan",
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 480),
-            view: PlanReviewWindow(watchPath: watchPath,
+            view: PlanReviewWindow(watchPath: watchPath, entries: entries,
+                                   remainingCount: remainingCount,
+                                   isCollecting: isCollecting,
                                    onCancel: cancelPlanSelection))
         window.delegate = delegate
         planWindow = window
         planDelegate = delegate
-        NSLog("Sortilege[diag]: plan window opened")
         bringToFront(window)
     }
 
-    /// Opens the plan window immediately; the view renders its own
-    /// collecting/progress state reactively from the engine.
+    /// Opens the plan window immediately in its "collecting" state so the
+    /// user sees progress on big folders instead of nothing.
     func openPlanReviewCollecting(watchPath: String) {
-        openPlanReview(watchPath: watchPath)
+        openPlanReview(watchPath: watchPath, entries: [], isCollecting: true)
     }
 
-    /// No longer needed: the plan window observes engine.planEntries and
-    /// flips out of collecting state on its own.
-    func finishPlanReview(entries: [PreviewReport.Entry], remainingCount: Int) {}
+    /// Flips an open collecting plan window to the finished plan.
+    func finishPlanReview(entries: [PreviewReport.Entry], remainingCount: Int) {
+        guard let window = planWindow else { return }
+        window.contentView = NSHostingView(rootView: PlanReviewWindow(
+            watchPath: planWatchPath,
+            entries: entries, remainingCount: remainingCount,
+            isCollecting: false, onCancel: cancelPlanSelection))
+        bringToFront(window)
+    }
 
     /// Closes the plan review window WITHOUT cancelling (used by the
     /// Start Sorting button). The plan window is not a SwiftUI scene, so
