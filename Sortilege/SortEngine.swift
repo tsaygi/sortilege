@@ -25,6 +25,11 @@ final class SortEngine: ObservableObject {
     /// Progress while collecting the plan or generating the report:
     /// index = files processed so far, total = candidate count.
     @Published private(set) var planProgress = (index: 0, total: 0)
+    /// Plan-review state, published so the review window updates
+    /// reactively while collection runs.
+    @Published private(set) var isCollectingPlan = false
+    @Published private(set) var planEntries: [PreviewReport.Entry] = []
+    @Published private(set) var planRemainingCount = 0
     @Published var lastError: String?
     /// True while the user is reviewing the plan for a newly selected
     /// folder. The engine does not scan or move anything while paused.
@@ -499,6 +504,13 @@ final class SortEngine: ObservableObject {
         guard let items = try? fileManager.contentsOfDirectory(
             at: watchURL, includingPropertiesForKeys: keys) else { return ([], 0) }
 
+        isCollectingPlan = true
+        planEntries = []
+        planRemainingCount = 0
+        defer {
+            isCollectingPlan = false
+        }
+
         var entries: [PreviewReport.Entry] = []
         var processed = 0
         var remaining = 0
@@ -548,6 +560,8 @@ final class SortEngine: ObservableObject {
                 remaining += 1
             }
         }
+        planEntries = entries
+        planRemainingCount = remaining
         return (entries, remaining)
     }
 

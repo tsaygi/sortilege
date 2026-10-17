@@ -285,10 +285,7 @@ struct SettingsWindow: View {
         AuxiliaryWindowController.shared.openPlanReviewCollecting(
             watchPath: engine.watchPath ?? "")
         Task { @MainActor in
-            let plan = await engine.collectQuickPlan()
-            AuxiliaryWindowController.shared.finishPlanReview(
-                entries: plan.entries,
-                remainingCount: plan.remainingCount)
+            _ = await engine.collectQuickPlan()
         }
     }
 

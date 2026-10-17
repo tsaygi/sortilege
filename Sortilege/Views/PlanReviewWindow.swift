@@ -13,18 +13,14 @@ import SwiftUI
 
 struct PlanReviewWindow: View {
     let watchPath: String
-    let entries: [PreviewReport.Entry]
-    /// Candidate files beyond the classified sample (quick plan).
-    var remainingCount: Int = 0
-    /// While the plan is being collected: a spinner/progress replaces the
-    /// list so big folders don't look frozen.
-    var isCollecting: Bool = false
     /// Invoked when the user cancels the plan (Cancel button or window
     /// close): clears both folder selections and returns the app to its
     /// first-run state.
     var onCancel: () -> Void
 
     @ObservedObject private var engine = SortEngine.shared
+
+    private var entries: [PreviewReport.Entry] { engine.planEntries }
 
     private var moves: [PreviewReport.Entry] {
         entries.compactMap {
@@ -39,6 +35,9 @@ struct PlanReviewWindow: View {
             return nil
         }
     }
+
+    private var remainingCount: Int { engine.planRemainingCount }
+    private var isCollecting: Bool { engine.isCollectingPlan }
 
     var body: some View {
         VStack(spacing: 0) {
