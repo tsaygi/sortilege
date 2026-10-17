@@ -122,6 +122,7 @@ final class AuxiliaryWindowController {
         window.delegate = delegate
         planWindow = window
         planDelegate = delegate
+        NSLog("Sortilege[diag]: plan window opened")
         bringToFront(window)
     }
 

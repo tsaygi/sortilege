@@ -504,10 +504,12 @@ final class SortEngine: ObservableObject {
         guard let items = try? fileManager.contentsOfDirectory(
             at: watchURL, includingPropertiesForKeys: keys) else { return ([], 0) }
 
+        NSLog("Sortilege[diag]: collectQuickPlan start, items=\(items.count)")
         isCollectingPlan = true
         planEntries = []
         planRemainingCount = 0
         defer {
+            NSLog("Sortilege[diag]: collectQuickPlan end, entries=\(entries.count) remaining=\(remaining)")
             isCollectingPlan = false
         }
 

@@ -267,6 +267,7 @@ struct MenuBarPanel: View {
     /// the plan, and shows the review window. Sorting only starts when the
     /// user accepts the plan.
     private func reviewPlan() {
+        NSLog("Sortilege[diag]: reviewPlan — watch=\(engine.watchPath ?? "nil") dest=\(engine.destPath ?? "nil")")
         engine.pause()
         engine.reload()
         AuxiliaryWindowController.shared.openPlanReviewCollecting(
