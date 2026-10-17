@@ -348,13 +348,15 @@ private struct RuleEditorRow: View {
                 .buttonStyle(.borderless)
                 .padding(.horizontal, 2)
             }
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 TextField(placeholder, text: $rule.pattern)
-                    .frame(maxWidth: 120)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 130)
                 Image(systemName: "arrow.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 TextField("Folder (e.g. Invoices)", text: $rule.folder)
+                    .textFieldStyle(.roundedBorder)
             }
             if !rule.isValid && !(rule.pattern.isEmpty && rule.folder.isEmpty) {
                 Text("Fill in both fields to activate this rule.")
@@ -408,6 +410,7 @@ private struct FilterEditorRow: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
+            .frame(maxWidth: 300)
             kindEditor
         }
         .padding(8)
@@ -423,6 +426,7 @@ private struct FilterEditorRow: View {
         case .byExtension:
             TextField("Extensions, comma-separated (e.g. png, gif, webp)",
                       text: $filter.extensions)
+                .textFieldStyle(.roundedBorder)
         case .byDate:
             HStack {
                 DatePicker("Date added", selection: $filter.cutoff)
