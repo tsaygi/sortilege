@@ -57,9 +57,14 @@ struct PlanReviewWindow: View {
 
     private var collectingView: some View {
         VStack(spacing: 14) {
-            ProgressView(value: progressFraction)
-                .progressViewStyle(.linear)
-                .frame(maxWidth: 320)
+            if progressFraction > 0 {
+                ProgressView(value: progressFraction)
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: 320)
+            } else {
+                ProgressView()
+                    .controlSize(.large)
+            }
             Text(progressText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -167,21 +172,43 @@ struct PlanReviewWindow: View {
     }
 
     private var footer: some View {
-        HStack {
-            Button("Cancel") {
-                cancel()
+        VStack(spacing: 8) {
+            if engine.isGeneratingPreview {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Generating HTML report…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    let progress = engine.planProgress
+                    if progress.total > 0 {
+                        ProgressView(value: Double(progress.index) / Double(progress.total))
+                            .progressViewStyle(.linear)
+                        Text("\(progress.index) of \(progress.total) files analyzed")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer()
-            Button("Open HTML Report") {
-                Task { await engine.generatePreviewReport() }
+            HStack {
+                Button("Cancel") {
+                    cancel()
+                }
+                Spacer()
+                Button("Open HTML Report") {
+                    Task { await engine.generatePreviewReport() }
+                }
+                .disabled(isCollecting || engine.isGeneratingPreview)
+                Button("Start Sorting") {
+                    engine.resume()
+                    AuxiliaryWindowController.shared.closePlanReview()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isCollecting)
             }
-            .disabled(isCollecting || engine.isGeneratingPreview)
-            Button("Start Sorting") {
-                engine.resume()
-                AuxiliaryWindowController.shared.closePlanReview()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(isCollecting)
         }
         .padding(12)
     }

@@ -560,15 +560,31 @@ final class SortEngine: ObservableObject {
         guard let items = try? fileManager.contentsOfDirectory(
             at: watchURL, includingPropertiesForKeys: keys) else { return [] }
 
+        let sortFolders = AppSettings.shared.sortFolders
         var entries: [PreviewReport.Entry] = []
+
+        // Cheap first pass: collect every candidate so the progress bar has
+        // a real total before the slow (AI) classification begins.
+        var candidates: [(entry: URL, values: URLResourceValues)] = []
         for entry in items.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            guard let values = try? entry.resourceValues(forKeys: Set(keys)),
-                  values.isRegularFile == true else { continue }
+            guard let values = try? entry.resourceValues(forKeys: Set(keys)) else { continue }
+            if values.isRegularFile != true && !(sortFolders && values.isDirectory == true) {
+                continue
+            }
             let name = entry.lastPathComponent
             if name.hasPrefix(".") { continue }
             if Self.inFlightExtensions.contains(entry.pathExtension.lowercased()) { continue }
             if let modified = values.contentModificationDate,
                Date().timeIntervalSince(modified) < Self.minAge { continue }
+            candidates.append((entry, values))
+        }
+        planProgress = (index: 0, total: candidates.count)
+
+        var processed = 0
+        for candidate in candidates {
+            let entry = candidate.entry
+            let values = candidate.values
+            let name = entry.lastPathComponent
 
             if skipPaths.contains(entry.path) {
                 entries.append(PreviewReport.Entry(
@@ -582,7 +598,6 @@ final class SortEngine: ObservableObject {
                     outcome: .skip(reason: "on the ignored list (Settings → Ignored files)")))
                 continue
             }
-
             let fileDate = values.addedToDirectoryDate
                 ?? values.contentModificationDate ?? Date()
             if !AppSettings.shared.shouldProcess(url: entry, fileDate: fileDate) {
@@ -599,6 +614,8 @@ final class SortEngine: ObservableObject {
             entries.append(PreviewReport.Entry(
                 fileName: name, sourcePath: entry.path,
                 outcome: .move(folder: folder, decidedBy: decidedBy, destination: destination)))
+            processed += 1
+            planProgress = (index: processed, total: candidates.count)
         }
         return entries
     }
