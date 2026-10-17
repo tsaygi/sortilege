@@ -115,7 +115,7 @@ struct SettingsWindow: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 520, minHeight: 580)
+        .frame(minWidth: 600, minHeight: 640)
     }
 
     // MARK: Bindings
@@ -336,10 +336,9 @@ private struct RuleEditorRow: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 260)
-                .fixedSize()
+                .frame(maxWidth: 240)
 
-                Spacer()
+                Spacer(minLength: 8)
                 Toggle("Enabled", isOn: $rule.enabled)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -347,11 +346,11 @@ private struct RuleEditorRow: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
+                .padding(.horizontal, 2)
             }
             HStack(spacing: 6) {
                 TextField(placeholder, text: $rule.pattern)
-                    .frame(minWidth: 90, maxWidth: 160)
-                    .fixedSize()
+                    .frame(maxWidth: 120)
                 Image(systemName: "arrow.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -391,10 +390,9 @@ private struct FilterEditorRow: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 300)
-                .fixedSize()
+                .frame(maxWidth: 280)
 
-                Spacer()
+                Spacer(minLength: 8)
                 Toggle("Enabled", isOn: $filter.enabled)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -435,7 +433,6 @@ private struct FilterEditorRow: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 140)
-                .fixedSize()
                 .labelsHidden()
             }
         case .byPath:

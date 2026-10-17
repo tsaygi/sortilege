@@ -88,8 +88,9 @@ final class AuxiliaryWindowController {
     func openSettings() {
         let window = settingsWindow ?? makeWindow(
             title: "Sortilege Settings",
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 700),
             view: SettingsWindow())
+        window.contentMinSize = NSSize(width: 620, height: 660)
         settingsWindow = window
         bringToFront(window)
     }
