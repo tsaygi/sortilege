@@ -106,6 +106,16 @@ Demo steps:
 6. Settings (⌘-style window via the dropdown) contains the Apple Intelligence toggle, dry run, pause, custom rules, filters, ignored files and folder pickers.
 ```
 
+## Privacy policy URL
+
+App Store Connect requires a publicly hosted privacy policy URL. The policy lives at:
+
+```
+https://github.com/tsaygi/sortilege/blob/main/docs/PRIVACY.md
+```
+
+(Or the raw URL: `https://raw.githubusercontent.com/tsaygi/sortilege/main/docs/PRIVACY.md` — either is accepted; the GitHub blob page is the friendlier link.)
+
 ## Privacy questionnaire answers (App Store Connect)
 
 - **Data collected:** "Data not collected" — the app collects nothing, sends nothing, tracks nothing.

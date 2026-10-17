@@ -39,6 +39,7 @@ The app is delivered as ready-to-use Swift sources — create a new Xcode projec
 - [docs/SETUP.md](docs/SETUP.md) — Xcode project setup, entitlements, Info.plist, privacy manifest, testing walkthrough.
 - [docs/APP_STORE.md](docs/APP_STORE.md) — App Store submission checklist, review notes, description guidance.
 - [docs/LIMITATIONS.md](docs/LIMITATIONS.md) — known prototype limitations and the post-1.0 roadmap.
+- [docs/PRIVACY.md](docs/PRIVACY.md) — privacy policy (also required for App Store submission).
 
 ## Project layout
 
