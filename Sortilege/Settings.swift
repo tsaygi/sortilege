@@ -89,12 +89,12 @@ final class AppSettings: ObservableObject {
     // MARK: Folder management (security-scoped bookmarks)
 
     func setWatchFolder(_ url: URL) {
-        watchBookmark = try? url.bookmarkData()
+        watchBookmark = try? url.bookmarkData(options: .withSecurityScope)
         defaults.set(watchBookmark ?? Data(), forKey: Key.watchBookmark)
     }
 
     func setDestFolder(_ url: URL) {
-        destBookmark = try? url.bookmarkData()
+        destBookmark = try? url.bookmarkData(options: .withSecurityScope)
         defaults.set(destBookmark ?? Data(), forKey: Key.destBookmark)
     }
 
@@ -115,32 +115,41 @@ final class AppSettings: ObservableObject {
         clearDestFolder()
     }
 
-    func resolveWatchFolder() -> URL? {
-        guard let data = watchBookmark else { return nil }
+    /// Resolves a stored bookmark. The caller owns the security scope: call
+    /// `startAccessingSecurityScopedResource()` once and balance it with
+    /// `stop…` (resolving never opens a scope itself, so repeated calls
+    /// cannot leak scope references).
+    private func resolve(_ data: Data, key: String) -> (url: URL, scoped: Bool)? {
         var stale = false
-        guard let url = try? URL(resolvingBookmarkData: data,
-                                  options: [], relativeTo: nil,
-                                  bookmarkDataIsStale: &stale) else { return nil }
-        if stale, let fresh = try? url.bookmarkData() {
-            watchBookmark = fresh
-            defaults.set(fresh, forKey: Key.watchBookmark)
+        var scoped = true
+        var url = try? URL(resolvingBookmarkData: data,
+                           options: [.withSecurityScope], relativeTo: nil,
+                           bookmarkDataIsStale: &stale)
+        if url == nil {
+            // Bookmark from an older version, created without a security
+            // scope: it still resolves, but the sandbox will not grant
+            // access after a relaunch — the user has to pick the folder again.
+            scoped = false
+            url = try? URL(resolvingBookmarkData: data,
+                           options: [], relativeTo: nil,
+                           bookmarkDataIsStale: &stale)
         }
-        _ = url.startAccessingSecurityScopedResource()
-        return url
+        guard let url else { return nil }
+        if stale, scoped,
+           let fresh = try? url.bookmarkData(options: .withSecurityScope) {
+            defaults.set(fresh, forKey: key)
+        }
+        return (url, scoped)
     }
 
-    func resolveDestFolder() -> URL? {
+    func resolveWatchFolder() -> (url: URL, scoped: Bool)? {
+        guard let data = watchBookmark else { return nil }
+        return resolve(data, key: Key.watchBookmark)
+    }
+
+    func resolveDestFolder() -> (url: URL, scoped: Bool)? {
         guard let data = destBookmark else { return nil }
-        var stale = false
-        guard let url = try? URL(resolvingBookmarkData: data,
-                                  options: [], relativeTo: nil,
-                                  bookmarkDataIsStale: &stale) else { return nil }
-        if stale, let fresh = try? url.bookmarkData() {
-            destBookmark = fresh
-            defaults.set(fresh, forKey: Key.destBookmark)
-        }
-        _ = url.startAccessingSecurityScopedResource()
-        return url
+        return resolve(data, key: Key.destBookmark)
     }
 
     // MARK: Toggles

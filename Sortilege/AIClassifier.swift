@@ -65,7 +65,7 @@ enum ImageCategory: String, CaseIterable {
 
 // MARK: - Classifier
 
-final class AIClassifier {
+final class AIClassifier: @unchecked Sendable {
 
     var isAvailable: Bool {
         #if canImport(FoundationModels)

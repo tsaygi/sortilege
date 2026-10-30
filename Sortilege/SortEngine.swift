@@ -36,6 +36,10 @@ final class SortEngine: ObservableObject {
     static let periodicInterval: TimeInterval = 60
     /// Debounce after a directory-change event.
     static let debounce: Duration = .seconds(3)
+    /// Upper bound for classifying one file with Apple Intelligence. A hung
+    /// model call must never block the scan loop — the file falls back to
+    /// the extension rules instead.
+    static let aiTimeout: TimeInterval = 20
 
     /// Extensions that usually mean "download still in progress".
     static let inFlightExtensions: Set<String> = [
@@ -47,6 +51,15 @@ final class SortEngine: ObservableObject {
     private var watcher: DispatchSourceFileSystemObject?
     private var timer: Timer?
     private var debounceTask: Task<Void, Never>?
+    private var followUpTask: Task<Void, Never>?
+    /// A scan was requested while another one was running: run once more
+    /// when it finishes instead of dropping the trigger.
+    private var rescanRequested = false
+    /// Security scopes held for the current watch/destination folders.
+    private var scopedURLs: [URL] = []
+    /// Keeps App Nap from throttling timers and the watcher: a tray app
+    /// without visible windows is otherwise napped within minutes.
+    private var activity: NSObjectProtocol?
     private let ai = AIClassifier()
     private let fileManager = FileManager.default
 
@@ -74,6 +87,17 @@ final class SortEngine: ObservableObject {
     /// Called once at app launch.
     func start() {
         aiAvailable = ai.isAvailable
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: [.background, .automaticTerminationDisabled,
+                      .suddenTerminationDisabled],
+            reason: "Watching the folder for new files")
+        // The timer and watcher can miss a beat across sleep: catch up
+        // right after the Mac wakes.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil,
+            queue: .main) { _ in
+            Task { @MainActor in SortEngine.shared.requestScan() }
+        }
         // Restore the persisted pause: if the user paused sorting before
         // quitting, the engine stays paused after relaunch.
         if AppSettings.shared.startPaused {
@@ -88,16 +112,32 @@ final class SortEngine: ObservableObject {
         stopWatcher()
         stopTimer()
 
-        watchURL = AppSettings.shared.resolveWatchFolder()
-        destURL = AppSettings.shared.resolveDestFolder() ?? watchURL
+        for url in scopedURLs { url.stopAccessingSecurityScopedResource() }
+        scopedURLs = []
+
+        let watch = AppSettings.shared.resolveWatchFolder()
+        let dest = AppSettings.shared.resolveDestFolder()
+        for resolved in [watch, dest].compactMap({ $0 }) {
+            if resolved.url.startAccessingSecurityScopedResource() {
+                scopedURLs.append(resolved.url)
+            }
+        }
+        watchURL = watch?.url
+        destURL = dest?.url ?? watchURL
         watchPath = watchURL?.path
         destPath = destURL?.path
 
-        guard let watchURL else { return }
+        guard watchURL != nil else { return }
+        if watch?.scoped == false || dest?.scoped == false {
+            lastError = "Sortilege lost access to your folders after an update. "
+                + "Choose the watch and destination folders again."
+        } else if lastError?.hasPrefix("Sortilege lost access") == true {
+            lastError = nil
+        }
         startWatcher()
         startTimer()
         guard !isPaused else { return }
-        Task { await scan() }
+        requestScan()
     }
 
     /// Pauses automatic sorting (watcher events and timer scans are
@@ -114,7 +154,7 @@ final class SortEngine: ObservableObject {
         isPaused = false
         AppSettings.shared.startPaused = false
         AppSettings.shared.persistToggles()
-        Task { await scan() }
+        requestScan()
     }
 
     /// Full cancel of the folder selection: unpause and reload with no
@@ -163,12 +203,16 @@ final class SortEngine: ObservableObject {
     // MARK: Periodic catch-up
 
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: Self.periodicInterval,
-                                     repeats: true) { _ in
+        // .common mode: the timer must keep firing while the menu bar
+        // panel is open or a window is being dragged (event tracking).
+        let timer = Timer(timeInterval: Self.periodicInterval,
+                          repeats: true) { _ in
             Task { @MainActor in
-                SortEngine.shared.timerTick()
+                SortEngine.shared.requestScan()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     private func stopTimer() {
@@ -176,29 +220,68 @@ final class SortEngine: ObservableObject {
         timer = nil
     }
 
-    private func timerTick() {
+    /// Fire-and-forget scan trigger (timer, wake, resume, reload).
+    private func requestScan() {
         Task { await scan() }
     }
 
     // MARK: Scanning
 
+    /// Runs a scan now. If one is already running the request is remembered
+    /// and the scan repeats as soon as the current pass is done, so a
+    /// trigger is never lost.
     func scan() async {
-        guard !isPaused, !isScanning, let watchURL else { return }
-        isScanning = true
-        defer {
-            isScanning = false
-            lastScanDate = Date()
+        guard !isPaused, watchURL != nil else { return }
+        guard !isScanning else {
+            rescanRequested = true
+            return
         }
+        isScanning = true
+        var waitingForAge = false
+        repeat {
+            rescanRequested = false
+            waitingForAge = await scanOnce()
+        } while rescanRequested && !isPaused
+        isScanning = false
+        lastScanDate = Date()
 
+        // Files younger than minAge were left alone: come back right after
+        // they have aged instead of waiting for the next periodic tick.
+        followUpTask?.cancel()
+        if waitingForAge {
+            followUpTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.minAge + 1))
+                guard !Task.isCancelled else { return }
+                await self?.scan()
+            }
+        }
+    }
+
+    /// One pass over the watch folder. Returns true when files were skipped
+    /// only because they are still too young.
+    private func scanOnce() async -> Bool {
+        guard let watchURL else { return false }
         let keys: [URLResourceKey] = [
             .isRegularFileKey, .isDirectoryKey, .contentModificationDateKey,
             .addedToDirectoryDateKey
         ]
-        guard let entries = try? fileManager.contentsOfDirectory(
-            at: watchURL, includingPropertiesForKeys: keys) else { return }
+        let entries: [URL]
+        do {
+            entries = try fileManager.contentsOfDirectory(
+                at: watchURL, includingPropertiesForKeys: keys)
+        } catch {
+            lastError = "Can't read \(watchURL.lastPathComponent): "
+                + error.localizedDescription
+                + " — choose the folder again in Settings."
+            return false
+        }
+        if lastError?.hasPrefix("Can't read") == true { lastError = nil }
 
+        var waitingForAge = false
         let sortFolders = AppSettings.shared.sortFolders
         for entry in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            // Pause (or a folder change) mid-scan stops further moves.
+            if isPaused { break }
             guard let values = try? entry.resourceValues(forKeys: Set(keys)) else { continue }
             // Folders are only considered when "move folders directly" is
             // enabled; otherwise they are left at the source untouched.
@@ -221,11 +304,13 @@ final class SortEngine: ObservableObject {
 
             if let modified = values.contentModificationDate,
                Date().timeIntervalSince(modified) < Self.minAge {
+                waitingForAge = true
                 continue
             }
 
             await process(entry)
         }
+        return waitingForAge
     }
 
     private func process(_ url: URL) async {
@@ -289,21 +374,8 @@ final class SortEngine: ObservableObject {
             return (customFolder, "custom")
         }
 
-        // Tier 0.5 — Apple Intelligence multimodal (macOS 27+): the model
-        // looks at the image itself: screenshot vs photo vs graphic.
-        if AppSettings.shared.useAI, RuleClassifier.isImage(url),
-           ai.isMultimodalAvailable,
-           let imageFolder = await ai.classifyImage(at: url) {
-            return (imageFolder, "AI")
-        }
-
-        // Tier 2 — Apple Intelligence reads the actual content.
-        if AppSettings.shared.useAI,
-           TextExtractor.textishExtensions.contains(url.pathExtension.lowercased()),
-           ai.isAvailable,
-           let text = TextExtractor.extract(from: url), !text.isEmpty,
-           let aiFolder = await ai.classify(
-                filename: url.lastPathComponent, text: text) {
+        // Tiers 0.5 and 2 — Apple Intelligence, bounded by a timeout.
+        if AppSettings.shared.useAI, let aiFolder = await classifyWithAI(url) {
             return (aiFolder, "AI")
         }
 
@@ -312,6 +384,47 @@ final class SortEngine: ObservableObject {
             return (rule.folderName, "rules")
         }
         return (Category.other.folderName, "rules")
+    }
+
+    /// Runs off the main actor so PDF/text extraction and model calls never
+    /// freeze the UI, and gives up after `aiTimeout` so one stuck call
+    /// cannot stall every later scan.
+    private func classifyWithAI(_ url: URL) async -> String? {
+        let ai = self.ai
+        return await Self.withTimeout(Self.aiTimeout) {
+            // Multimodal (macOS 27+): the model looks at the image itself.
+            if RuleClassifier.isImage(url), ai.isMultimodalAvailable,
+               let folder = await ai.classifyImage(at: url) {
+                return folder
+            }
+            // The model reads the actual content of text-bearing files.
+            if TextExtractor.textishExtensions.contains(url.pathExtension.lowercased()),
+               ai.isAvailable,
+               let text = TextExtractor.extract(from: url), !text.isEmpty,
+               let folder = await ai.classify(
+                    filename: url.lastPathComponent, text: text) {
+                return folder
+            }
+            return nil
+        }
+    }
+
+    /// Returns the operation's result, or nil if it takes longer than
+    /// `seconds`. Unlike a task group this returns on time even when the
+    /// operation ignores cancellation.
+    private nonisolated static func withTimeout<T: Sendable>(
+        _ seconds: TimeInterval,
+        _ operation: @escaping @Sendable () async -> T?
+    ) async -> T? {
+        await withCheckedContinuation { continuation in
+            let gate = ResumeOnce(continuation)
+            let work = Task { gate.resume(await operation()) }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                work.cancel()
+                gate.resume(nil)
+            }
+        }
     }
 
     private func uniqueDestination(_ destination: URL) -> URL {
@@ -395,19 +508,9 @@ final class SortEngine: ObservableObject {
         let from = URL(fileURLWithPath: entry.destinationPath)
         let backTo = URL(fileURLWithPath: entry.sourcePath)
 
-        // Explicit security-scoped access for both endpoints, from the
-        // stored bookmarks. Without an active scope the sandbox makes
-        // fileExists return false and moveItem throw.
-        var scopes: [URL] = []
-        for url in [AppSettings.shared.resolveWatchFolder(),
-                    AppSettings.shared.resolveDestFolder()].compactMap({ $0 }) {
-            if url.startAccessingSecurityScopedResource() {
-                scopes.append(url)
-            }
-        }
-        defer {
-            for url in scopes { url.stopAccessingSecurityScopedResource() }
-        }
+        // Both endpoints are covered by the scopes `reload()` holds open;
+        // without an active scope the sandbox makes fileExists return false
+        // and moveItem throw.
 
         NSLog("Sortilege[diag]: undo checking source exists at \(from.path): \(fileManager.fileExists(atPath: from.path))")
         guard fileManager.fileExists(atPath: from.path) else {
@@ -625,5 +728,23 @@ final class SortEngine: ObservableObject {
     func openDestination() {
         guard let folder = destURL ?? watchURL else { return }
         NSWorkspace.shared.open(folder)
+    }
+}
+
+/// Resumes a checked continuation at most once (timeout vs. result race).
+private final class ResumeOnce<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T?, Never>?
+
+    init(_ continuation: CheckedContinuation<T?, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(_ value: T?) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        pending?.resume(returning: value)
     }
 }

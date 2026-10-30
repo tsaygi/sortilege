@@ -14,96 +14,82 @@ struct MenuBarPanel: View {
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header
+
             if let error = engine.lastError {
-                Text(error)
-                    .font(.caption2)
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .card()
             }
 
-            Divider()
-
             if engine.isGeneratingPreview {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Generating HTML report…")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    let progress = engine.planProgress
-                    if progress.total > 0 {
-                        ProgressView(value: Double(progress.index) / Double(progress.total))
-                            .progressViewStyle(.linear)
-                        Text("\(progress.index) of \(progress.total) files analyzed")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Divider()
+                previewProgress
             }
 
             if settings.watchBookmark == nil {
                 firstRunPrompt
-                Divider()
-                settingsRow
             } else {
                 folderRows
-                Divider()
-                settingsRow
-                Divider()
                 actionButtons
-                Divider()
                 historySection
             }
 
-            Divider()
-
-            HStack {
-                Button {
-                    if engine.isPaused {
-                        engine.resume()
-                    } else {
-                        engine.pause()
-                    }
-                } label: {
-                    Label(engine.isPaused ? "Resume" : "Pause",
-                          systemImage: engine.isPaused ? "play.fill" : "pause.fill")
-                }
-                .disabled(settings.watchBookmark == nil)
-                Spacer()
-                Button("Quit Sortilege") { NSApp.terminate(nil) }
-                    .controlSize(.small)
-            }
+            footer
         }
         .padding(14)
         .frame(width: 380)
+        .animation(.easeInOut(duration: 0.2), value: engine.isScanning)
+        .animation(.easeInOut(duration: 0.2), value: engine.isPaused)
+        .animation(.easeInOut(duration: 0.2), value: engine.lastError)
     }
 
     // MARK: Header
 
-    private var statusLine: String {
-        if engine.isPaused { return "Paused — no files are being moved" }
-        if engine.isGeneratingPreview { return "Generating preview report…" }
-        if engine.isScanning { return "Scanning…" }
-        var line = "Watching in the background · \(engine.movedToday) moved today"
-        if let last = engine.lastScanDate {
-            line += " · last scan \(last.formatted(date: .omitted, time: .shortened))"
-        }
-        return line
+    private var statusColor: Color {
+        if engine.isPaused { return .orange }
+        if engine.isScanning || engine.isGeneratingPreview { return .blue }
+        return .green
     }
+
+    private var statusTitle: String {
+        if engine.isPaused { return "Paused" }
+        if engine.isGeneratingPreview { return "Generating preview…" }
+        if engine.isScanning { return "Sorting…" }
+        return "Watching"
+    }
+
+    private var statusDetail: String {
+        if engine.isPaused { return "No files are being moved" }
+        var parts = ["\(engine.movedToday) moved today"]
+        if let last = engine.lastScanDate {
+            parts.append("last scan \(last.formatted(date: .omitted, time: .shortened))")
+        }
+        return parts.joined(separator: " · ")
+    }
+
     private var header: some View {
-        HStack(alignment: .center) {
+        HStack(spacing: 10) {
             Image(systemName: "tray.and.arrow.down.fill")
-                .font(.title3)
-                .foregroundStyle(.tint)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(Color.accentColor.gradient,
+                            in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Sortilege").font(.headline)
-                Text(statusLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    StatusDot(color: statusColor,
+                              pulsing: engine.isScanning || (!engine.isPaused && settings.watchBookmark != nil))
+                    Text(settings.watchBookmark == nil ? "Sortilege" : statusTitle)
+                        .font(.headline)
+                }
+                if settings.watchBookmark != nil {
+                    Text(statusDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             statusBadge
@@ -111,116 +97,119 @@ struct MenuBarPanel: View {
     }
 
     private var statusBadge: some View {
-        Text(engine.aiAvailable && settings.useAI ? "AI on" : "Rules")
+        let ai = engine.aiAvailable && settings.useAI
+        return Label(ai ? "AI" : "Rules", systemImage: ai ? "sparkles" : "list.bullet")
             .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(Capsule().fill(.quaternary.opacity(0.5)))
+            .background(Capsule().fill(ai ? Color.accentColor.opacity(0.18)
+                                           : Color.secondary.opacity(0.15)))
+            .foregroundStyle(ai ? Color.accentColor : Color.secondary)
+            .help(ai ? "Apple Intelligence sorts by content"
+                     : "Rule-based sorting only")
+    }
+
+    private var previewProgress: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Generating HTML report…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            let progress = engine.planProgress
+            if progress.total > 0 {
+                ProgressView(value: Double(progress.index) / Double(progress.total))
+                    .progressViewStyle(.linear)
+                Text("\(progress.index) of \(progress.total) files analyzed")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .card()
     }
 
     // MARK: First run
 
     private var firstRunPrompt: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Choose the folder to watch — usually your Downloads folder.")
-                .font(.callout)
-            Text("Sortilege moves new files into category folders so they land "
-                 + "in a location your backups actually include.")
+            Text("Choose the folder to watch")
+                .font(.callout.weight(.medium))
+            Text("Usually your Downloads folder. Sortilege moves new files into "
+                 + "category folders so they land in a location your backups "
+                 + "actually include.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("Set…") { chooseWatchFolder() }
+            Button("Choose Folder…") { chooseWatchFolder() }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .card(padding: 12)
     }
 
     // MARK: Folders
 
     private var folderRows: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Watching").font(.caption).foregroundStyle(.secondary)
-                    Text(engine.watchPath ?? "—")
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-                Button("Change…") { chooseWatchFolder() }
-                    .controlSize(.small)
-            }
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Destination").font(.caption).foregroundStyle(.secondary)
-                    Text(engine.destPath ?? "—")
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-                Button("Change…") { chooseDestFolder() }
-                    .controlSize(.small)
-            }
+        VStack(spacing: 0) {
+            folderRow(title: "Watching", icon: "eye", path: engine.watchPath,
+                      action: chooseWatchFolder)
+            Divider().padding(.leading, 30)
+            folderRow(title: "Sorted into", icon: "folder", path: engine.destPath,
+                      action: chooseDestFolder)
         }
+        .card(padding: 8)
     }
 
-    // MARK: Settings access
-
-    /// Opens the Settings window. SwiftUI scene machinery (Settings scene,
-    /// openWindow) proved unreliable in this MenuBarExtra-only accessory
-    /// app, so the settings UI is hosted in a plain NSWindow managed by
-    /// the AppDelegate.
-    private func openSettingsWindow() {
-        AuxiliaryWindowController.shared.openSettings()
-    }
-
-    private var settingsRow: some View {
-        HStack {
+    private func folderRow(title: String, icon: String, path: String?,
+                           action: @escaping () -> Void) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Apple Intelligence")
+                Text(title).font(.caption2).foregroundStyle(.secondary)
+                Text(path.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "—")
                     .font(.caption)
-                Text(settings.useAI && engine.aiAvailable
-                     ? "On — text and images sorted by content"
-                     : "Off — rule-based sorting only")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             Spacer()
-            Button("Settings…") { openSettingsWindow() }
-                .controlSize(.small)
+            Button("Change", action: action)
+                .buttonStyle(.borderless)
+                .font(.caption)
         }
+        .padding(.vertical, 5)
     }
 
     // MARK: Actions
 
+    private var busy: Bool { engine.isScanning || engine.isGeneratingPreview }
 
     private var actionButtons: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button {
                 Task { await engine.scan() }
             } label: {
-                Label("Scan Now", systemImage: "arrow.triangle.2.circlepath")
+                Label("Sort Now", systemImage: "arrow.triangle.2.circlepath")
             }
-            .disabled(engine.isPaused || engine.isScanning || engine.isGeneratingPreview)
+            .disabled(engine.isPaused || busy)
+            .help(engine.isPaused ? "Resume to sort" : "Scan the watch folder now")
 
             // Dry run: simulate the full sort and open an HTML report in
             // the default browser showing where every file would go.
             Button {
                 Task { await engine.generatePreviewReport() }
             } label: {
-                Label("Preview…", systemImage: "wand.and.stars")
+                Label("Preview", systemImage: "wand.and.stars")
             }
-            .disabled(engine.isScanning || engine.isGeneratingPreview)
+            .disabled(busy)
 
             Button {
                 AuxiliaryWindowController.shared.openActivity()
             } label: {
-                Label("Undo…", systemImage: "arrow.uturn.backward")
+                Label("Undo", systemImage: "arrow.uturn.backward")
             }
-            .disabled(engine.isScanning || engine.isGeneratingPreview)
-
-            Spacer()
 
             Button {
                 engine.openDestination()
@@ -228,37 +217,91 @@ struct MenuBarPanel: View {
                 Label("Open", systemImage: "folder")
             }
         }
-        .controlSize(.small)
+        .buttonStyle(TileButtonStyle())
     }
 
     // MARK: History
 
     private var historySection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Recent activity").font(.caption).foregroundStyle(.secondary)
-            if engine.history.isEmpty {
-                Text("Nothing sorted yet — drop a file into the watch folder.")
-                    .font(.caption2)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Recent activity")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-            } else {
-                ForEach(engine.history.prefix(6)) { record in
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.right.circle")
-                            .font(.caption2)
-                            .foregroundStyle(.tint)
-                        Text(record.fileName)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
-                        Text("→ \(record.folder) · \(record.decidedBy)")
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.caption)
+                Spacer()
+                if !engine.history.isEmpty {
+                    Button("See all") { AuxiliaryWindowController.shared.openActivity() }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
                 }
             }
+            if engine.history.isEmpty {
+                Text("Nothing sorted yet — drop a file into the watch folder.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(engine.history.prefix(5)) { record in
+                        HStack(spacing: 8) {
+                            Image(systemName: FolderStyle.symbol(for: record.folder))
+                                .font(.caption)
+                                .foregroundStyle(record.undone ? Color.secondary : Color.accentColor)
+                                .frame(width: 18)
+                            Text(record.fileName)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer(minLength: 8)
+                            Text(record.folder)
+                                .lineLimit(1)
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.caption)
+                        .padding(.vertical, 4)
+                        .help("\(record.fileName) → \(record.folder) · \(record.decidedBy)")
+                    }
+                }
+                .card(padding: 8)
+            }
         }
+    }
+
+    // MARK: Footer
+
+    private var footer: some View {
+        HStack(spacing: 8) {
+            Button {
+                if engine.isPaused {
+                    engine.resume()
+                } else {
+                    engine.pause()
+                }
+            } label: {
+                Label(engine.isPaused ? "Resume" : "Pause",
+                      systemImage: engine.isPaused ? "play.fill" : "pause.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(engine.isPaused ? .accentColor : .gray)
+            .disabled(settings.watchBookmark == nil)
+
+            Spacer()
+
+            Button {
+                AuxiliaryWindowController.shared.openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Settings")
+
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Image(systemName: "power")
+            }
+            .help("Quit Sortilege")
+        }
+        .controlSize(.regular)
     }
 
     // MARK: Pickers
