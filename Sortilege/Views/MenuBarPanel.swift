@@ -271,19 +271,22 @@ struct MenuBarPanel: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button {
-                if engine.isPaused {
-                    engine.resume()
-                } else {
-                    engine.pause()
+            // Resume is the prominent (accent) action; Pause uses the
+            // system bordered style, which adapts to light/dark itself
+            // (a fixed gray tint did not).
+            if engine.isPaused {
+                Button { engine.resume() } label: {
+                    Label("Resume", systemImage: "play.fill")
                 }
-            } label: {
-                Label(engine.isPaused ? "Resume" : "Pause",
-                      systemImage: engine.isPaused ? "play.fill" : "pause.fill")
+                .buttonStyle(.borderedProminent)
+                .disabled(settings.watchBookmark == nil)
+            } else {
+                Button { engine.pause() } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+                .buttonStyle(.bordered)
+                .disabled(settings.watchBookmark == nil)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(engine.isPaused ? .accentColor : .gray)
-            .disabled(settings.watchBookmark == nil)
 
             Spacer()
 
